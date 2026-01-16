@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Icon</title>
+</head>
+<body>
+    <canvas id="canvas" width="1024" height="1024"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 1024, 1024);
+        gradient.addColorStop(0, '#3b82f6');
+        gradient.addColorStop(1, '#8b5cf6');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 1024, 1024);
+        
+        // White icon symbol (image frame)
+        ctx.strokeStyle = '#ffffff';
+        ctx.fillStyle = '#ffffff';
+        ctx.lineWidth = 60;
+        
+        // Outer frame
+        ctx.strokeRect(200, 200, 624, 624);
+        
+        // Image symbol (mountain + sun)
+        ctx.beginPath();
+        ctx.arc(400, 350, 80, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(250, 700);
+        ctx.lineTo(450, 450);
+        ctx.lineTo(650, 600);
+        ctx.lineTo(774, 700);
+        ctx.closePath();
+        ctx.fill();
+        
+        console.log('Icon generated. Save this canvas as PNG (1024x1024)');
+        console.log('Right-click the canvas and save as icon.png');
+    </script>
+</body>
+</html>
