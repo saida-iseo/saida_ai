@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useUpscale } from '@/hooks/useUpscale';
 import { RotateCw, CornerUpRight, CornerUpLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { buildFilename } from '@/lib/utils/filename';
 
 export default function RotateEditor() {
     const router = useRouter();
@@ -36,7 +37,7 @@ export default function RotateEditor() {
             
             const { rotateImage, downloadImage } = await import('@/lib/utils/imageProcessor');
             const rotated = await rotateImage(blob, rotation);
-            const filename = originalImage.name.replace(/\.[^/.]+$/, '') + `_rotated_${rotation}deg.${originalImage.type.split('/')[1] || 'png'}`;
+            const filename = buildFilename(originalImage.name, `rotate${rotation}deg`, originalImage.type.split('/')[1] || 'png');
             downloadImage(rotated, filename);
         } catch (error) {
             console.error('회전 실패:', error);
@@ -49,7 +50,7 @@ export default function RotateEditor() {
     if (!originalImage || !imgUrl) return null;
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-slate-950">
+        <div className="flex h-[calc(100vh-64px)] bg-background">
             <div className="flex-grow flex flex-col items-center justify-center p-12 overflow-auto">
                 <div className="relative group max-w-2xl w-full transition-transform duration-500" style={{ transform: `rotate(${rotation}deg)` }}>
                     <img src={imgUrl} alt="Preview" className="relative z-10 w-full rounded-2xl border-4 border-slate-800 shadow-2xl object-contain h-[500px]" />

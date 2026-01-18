@@ -39,7 +39,7 @@ export default function UnifiedUploadZone({ onUpload, title, className }: Unifie
                     "relative group cursor-pointer transition-all duration-500 rounded-[3rem] border-4 border-dashed overflow-hidden min-h-[500px] flex flex-col items-center justify-center p-12 text-center",
                     isDragActive
                         ? "border-red-500 bg-red-500/5 scale-[0.98]"
-                        : "border-slate-800 bg-slate-900/50 hover:bg-slate-900 hover:border-slate-700"
+                        : "border-card-border bg-card-bg/60 hover:bg-card-bg hover:border-card-border"
                 )}
             >
                 <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -47,15 +47,15 @@ export default function UnifiedUploadZone({ onUpload, title, className }: Unifie
                 <div className="relative z-10 flex flex-col items-center mb-16">
                     <div className={cn(
                         "mb-8 h-24 w-24 rounded-3xl flex items-center justify-center transition-all duration-500",
-                        isDragActive ? "bg-red-500 text-white scale-110 rotate-12" : "bg-slate-800 text-slate-400 group-hover:bg-red-500 group-hover:text-white group-hover:rotate-6"
+                        isDragActive ? "bg-red-500 text-white scale-110 rotate-12" : "bg-card-bg text-text-tertiary group-hover:bg-red-500 group-hover:text-white group-hover:rotate-6"
                     )}>
                         {isDragActive ? <Upload className="h-10 w-10" /> : <FileImage className="h-10 w-10" />}
                     </div>
 
-                    <h3 className="text-4xl font-black text-white tracking-tighter mb-4 leading-tight whitespace-pre-line">
+                    <h3 className="text-4xl font-black text-text-primary tracking-tighter mb-4 leading-tight whitespace-pre-line">
                         {title || '이미지를 드래그하여\n바로 시작하세요'}
                     </h3>
-                    <p className="text-slate-400 font-bold mb-10 max-w-sm">
+                    <p className="text-text-secondary font-bold mb-10 max-w-sm">
                         여러 장의 이미지를 동시에 업로드할 수 있습니다. <br />
                         PNG, JPG, JPEG, WebP 지원 (최대 10MB)
                     </p>
@@ -68,12 +68,12 @@ export default function UnifiedUploadZone({ onUpload, title, className }: Unifie
                 </div>
 
                 {/* Google Drive Mock Area */}
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center justify-center gap-4 py-3 px-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 group/drive w-max">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">또는 외부 연동</span>
-                    <div className="h-4 w-px bg-slate-700 hidden sm:block" />
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center justify-center gap-4 py-3 px-6 rounded-2xl bg-card-bg/60 backdrop-blur-md border border-card-border group/drive w-max">
+                    <span className="text-[10px] font-black text-text-tertiary uppercase tracking-widest hidden sm:block">또는 외부 연동</span>
+                    <div className="h-4 w-px bg-card-border hidden sm:block" />
                     <button
                         onClick={handleDriveClick}
-                        className="flex items-center gap-2 text-slate-300 hover:text-white transition-all hover:scale-105"
+                        className="flex items-center gap-2 text-text-secondary hover:text-text-primary transition-all hover:scale-105"
                     >
                         <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
                             <Cloud className="h-4 w-4" />
@@ -82,7 +82,7 @@ export default function UnifiedUploadZone({ onUpload, title, className }: Unifie
                     </button>
                     <button
                         onClick={handleDriveClick}
-                        className="flex items-center gap-2 text-slate-300 hover:text-white transition-all hover:scale-105"
+                        className="flex items-center gap-2 text-text-secondary hover:text-text-primary transition-all hover:scale-105"
                     >
                         <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
                             <HardDrive className="h-4 w-4" />

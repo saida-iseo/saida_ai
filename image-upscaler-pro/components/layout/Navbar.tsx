@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store/useAppStore';
-import { Heart, Sparkles, Files, Zap, MoveDiagonal, Stamp, Sun, Moon } from 'lucide-react';
+import { Heart, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 export default function Navbar() {
@@ -28,17 +28,31 @@ export default function Navbar() {
                     </Link>
 
                     {/* Core Menu */}
-                    <div className="hidden lg:flex items-center gap-6">
-                        <NavItem label="업스케일링" href="/upscale" />
-                        <NavItem label="포맷 변환" href="/tools/convert" />
-                        <NavItem label="이미지 압축" href="/tools/compress" />
-                        <NavItem label="크기 조절" href="/tools/resize" />
+                    <div className="hidden lg:flex items-center gap-5 overflow-x-auto scrollbar-hide pr-2">
+                        <NavItem label="업스케일" href="/upscale" />
+                        <NavItem label="압축" href="/tools/compress" />
+                        <NavItem label="크기" href="/tools/resize" />
+                        <NavItem label="포맷" href="/tools/convert" />
+                        <NavItem label="블러" href="/tools/blur" />
+                        <NavItem label="크롭" href="/tools/crop" />
+                        <NavItem label="회전" href="/tools/rotate" />
                         <NavItem label="워터마크" href="/tools/watermark-maker" />
+                        <NavItem label="꾸미기" href="/tools/decorate" />
+                        <NavItem label="컬러" href="/tools/adjust" />
+                        <NavItem label="모자이크" href="/tools/pixelate" />
+                        <NavItem label="프레임" href="/tools/frame" />
+                        <NavItem label="AI" href="/ai" />
                     </div>
                 </div>
 
                 {/* Right Actions */}
                 <div className="flex items-center gap-4">
+                    <Link
+                        href="/login"
+                        className="hidden sm:inline-flex text-[11px] font-bold text-text-primary px-4 py-1.5 rounded-full bg-card-bg border border-card-border hover:text-accent transition-all"
+                    >
+                        로그인
+                    </Link>
                     <button
                         onClick={toggleTheme}
                         className="p-2 rounded-xl bg-card-bg text-text-secondary hover:text-text-primary border border-card-border transition-all"
@@ -64,7 +78,7 @@ function NavItem({ label, href }: { label: string; href: string }) {
         <Link
             href={href}
             className={cn(
-                "text-[13px] font-medium transition-colors hover:text-accent",
+                "text-[13px] font-medium transition-colors hover:text-accent whitespace-nowrap",
                 isActive ? "text-accent font-bold" : "text-text-secondary"
             )}
         >

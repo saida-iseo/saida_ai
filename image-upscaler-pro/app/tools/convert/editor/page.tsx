@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useUpscale } from '@/hooks/useUpscale'; // We can adapt or rename this to a generic useProcessor hook later
 import { Download, ArrowLeft, Files, Settings2, Sparkles, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { buildFilename } from '@/lib/utils/filename';
 
 export default function ConvertEditor() {
     const router = useRouter();
@@ -69,7 +70,7 @@ export default function ConvertEditor() {
             const { convertImage, downloadImage } = await import('@/lib/utils/imageProcessor');
             const converted = await convertImage(blob, outputFormat, quality / 100);
             const ext = outputFormat.split('/')[1] || 'png';
-            const filename = originalImage.name.replace(/\.[^/.]+$/, '') + `.${ext}`;
+            const filename = buildFilename(originalImage.name, 'convert', ext);
             downloadImage(converted, filename);
         } catch (error) {
             console.error('변환 실패:', error);
@@ -82,7 +83,7 @@ export default function ConvertEditor() {
     if (!originalImage || !imgUrl) return null;
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-slate-950">
+        <div className="flex h-[calc(100vh-64px)] bg-background">
             <div className="flex-grow flex flex-col items-center justify-center p-12 overflow-auto">
                 <div className="relative group max-w-2xl w-full">
                     <div className="absolute inset-0 bg-white/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />

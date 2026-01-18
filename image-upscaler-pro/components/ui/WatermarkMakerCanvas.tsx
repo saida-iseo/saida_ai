@@ -5,6 +5,7 @@ import React, { useRef, useEffect } from 'react';
 interface WatermarkCanvasProps {
     settings: any;
     logoImg?: HTMLImageElement | null;
+    baseImg?: HTMLImageElement | null;
     width: number;
     height: number;
     showCheckerboard?: boolean;
@@ -13,6 +14,7 @@ interface WatermarkCanvasProps {
 export default function WatermarkMakerCanvas({
     settings,
     logoImg,
+    baseImg,
     width,
     height,
     showCheckerboard = true
@@ -39,6 +41,10 @@ export default function WatermarkMakerCanvas({
             }
         }
 
+        if (baseImg) {
+            ctx.drawImage(baseImg, 0, 0, width, height);
+        }
+
         ctx.save();
 
         // Logic for Tiling
@@ -53,6 +59,8 @@ export default function WatermarkMakerCanvas({
 
     const drawSingle = (ctx: CanvasRenderingContext2D, s: any, img: HTMLImageElement | null | undefined, w: number, h: number) => {
         ctx.globalAlpha = s.opacity;
+        const posX = (s.positionX ?? 50) / 100;
+        const posY = (s.positionY ?? 50) / 100;
 
         if (s.type === 'text') {
             ctx.font = `${s.fontWeight} ${s.fontSize}px sans-serif`;
@@ -67,11 +75,19 @@ export default function WatermarkMakerCanvas({
                 ctx.shadowOffsetY = 2;
             }
 
-            ctx.fillText(s.text, w / 2, h / 2);
+            ctx.save();
+            ctx.translate(w * posX, h * posY);
+            ctx.rotate(((s.angle || 0) * Math.PI) / 180);
+            ctx.fillText(s.text, 0, 0);
+            ctx.restore();
         } else if (img) {
             const iw = img.width * s.scale;
             const ih = img.height * s.scale;
-            ctx.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih);
+            ctx.save();
+            ctx.translate(w * posX, h * posY);
+            ctx.rotate(((s.angle || 0) * Math.PI) / 180);
+            ctx.drawImage(img, -iw / 2, -ih / 2, iw, ih);
+            ctx.restore();
         }
     };
 
@@ -92,7 +108,7 @@ export default function WatermarkMakerCanvas({
     };
 
     return (
-        <div className="relative aspect-square w-full bg-slate-900 rounded-[2rem] border-4 border-slate-800 shadow-2xl overflow-hidden group">
+        <div className="relative aspect-square w-full bg-card-bg rounded-[2rem] border-4 border-card-border shadow-2xl overflow-hidden group">
             <canvas
                 ref={canvasRef}
                 width={width}

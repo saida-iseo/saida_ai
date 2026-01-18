@@ -1,31 +1,72 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Image as ImageIcon, FileWarning, Cloud, Box, Sparkles } from 'lucide-react';
+import { Upload, FileWarning, Cloud, Box, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { imageDb } from '@/lib/db/imageDb';
 import { useRouter } from 'next/navigation';
 import FeatureBox from '@/components/ui/FeatureBox';
+import { addRecentHistory, createThumbnail } from '@/lib/history/recentHistory';
+import { downloadImage } from '@/lib/utils/imageProcessor';
+import { buildFilename } from '@/lib/utils/filename';
+import type { UpscaleOptions, WorkerResponse } from '@/lib/upscale/types';
 
 export default function UpscaleUpload() {
     const router = useRouter();
     const setOriginalImage = useAppStore((state) => state.setOriginalImage);
+    const {
+        upscaleFactor,
+        outputFormat,
+        quality,
+        upscaleMode,
+        faceRestore,
+        gpuAcceleration,
+        qualityPreset,
+        fidelity,
+        tileAuto,
+        tileSize,
+        tileOverlap,
+        maxPixels,
+        targetSize,
+    } = useAppStore();
     const [error, setError] = useState<string | null>(null);
+    const [batchActive, setBatchActive] = useState(false);
+    const [batchDone, setBatchDone] = useState(0);
+    const [batchTotal, setBatchTotal] = useState(0);
+    const [batchCurrent, setBatchCurrent] = useState('');
+    const workerRef = useRef<Worker | null>(null);
+
+    useEffect(() => {
+        return () => {
+            workerRef.current?.terminate();
+            workerRef.current = null;
+        };
+    }, []);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         if (acceptedFiles.length === 0) return;
 
+        if (acceptedFiles.length > 10) {
+            setError('무료 배치는 최대 10장까지 가능합니다.');
+            return;
+        }
+
         const file = acceptedFiles[0];
 
         // Validate file type
-        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        if (!acceptedFiles.every((f) => ['image/png', 'image/jpeg', 'image/webp'].includes(f.type))) {
             setError('지원하지 않는 파일 형식입니다. (PNG, JPG, WebP만 가능)');
             return;
         }
 
         try {
+            if (acceptedFiles.length > 1) {
+                await runBatchUpscale(acceptedFiles);
+                return;
+            }
+
             const id = crypto.randomUUID();
             await imageDb.saveImage(id, file);
 
@@ -43,33 +84,155 @@ export default function UpscaleUpload() {
                 height: img.height,
             });
 
+            const thumbUrl = await createThumbnail(file);
+            addRecentHistory({
+                id: crypto.randomUUID(),
+                tool: 'AI 업스케일',
+                route: '/upscale/editor',
+                imageId: id,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                width: img.width,
+                height: img.height,
+                thumbUrl,
+                createdAt: Date.now(),
+            });
+
             router.push('/upscale/editor');
         } catch (err) {
             console.error('File processing error:', err);
             setError('이미지 처리 중 오류가 발생했습니다.');
         }
-    }, [setOriginalImage, router]);
+    }, [
+        setOriginalImage,
+        router,
+        upscaleFactor,
+        outputFormat,
+        quality,
+        upscaleMode,
+        faceRestore,
+        gpuAcceleration,
+        qualityPreset,
+        fidelity,
+        tileAuto,
+        tileSize,
+        tileOverlap,
+        maxPixels,
+        targetSize
+    ]);
+
+    const runBatchUpscale = async (files: File[]) => {
+        setBatchActive(true);
+        setBatchDone(0);
+        setBatchTotal(files.length);
+
+        const workerUrl = new URL('../../lib/workers/sr-upscale.worker.ts', import.meta.url);
+        if (workerRef.current) workerRef.current.terminate();
+        workerRef.current = new Worker(workerUrl);
+
+        const processFile = (file: File) => {
+            return new Promise<Blob>((resolve, reject) => {
+                if (!workerRef.current) return reject(new Error('Worker unavailable'));
+
+                const requestId = crypto.randomUUID();
+                const options: UpscaleOptions = {
+                    mode: upscaleMode,
+                    scale: upscaleFactor,
+                    preset: qualityPreset,
+                    fidelity: fidelity / 100,
+                    useGPU: gpuAcceleration,
+                    faceRestore,
+                    targetSize: targetSize || undefined,
+                    tile: {
+                        auto: tileAuto,
+                        size: tileSize,
+                        overlap: tileOverlap,
+                        maxPixels,
+                    },
+                    output: {
+                        format: outputFormat,
+                        quality: quality / 100,
+                    }
+                };
+
+                workerRef.current.onmessage = (e: MessageEvent<WorkerResponse>) => {
+                    const msg = e.data;
+                    if (msg.type === 'error') reject(new Error(msg.message));
+                    if (msg.type === 'result') resolve(msg.blob);
+                };
+
+                workerRef.current.postMessage({
+                    type: 'upscale',
+                    requestId,
+                    imageBlob: file,
+                    options,
+                });
+            });
+        };
+
+        try {
+            for (const file of files) {
+                setBatchCurrent(file.name);
+                const id = crypto.randomUUID();
+                await imageDb.saveImage(id, file);
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                await img.decode();
+                const thumbUrl = await createThumbnail(file);
+                addRecentHistory({
+                    id: crypto.randomUUID(),
+                    tool: 'AI 업스케일 (배치)',
+                    route: '/upscale/editor',
+                    imageId: id,
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    width: img.width,
+                    height: img.height,
+                    thumbUrl,
+                    createdAt: Date.now(),
+                });
+
+                const blob = await processFile(file);
+                const scaleLabel = targetSize ? targetSize.label.replace(/\s+/g, '') : `${upscaleFactor}x`;
+                const filename = buildFilename(file.name, `upscale${scaleLabel}`, outputFormat.split('/')[1] || 'png');
+                downloadImage(blob, filename);
+                setBatchDone((prev) => prev + 1);
+            }
+        } catch (err) {
+            console.error(err);
+            setError('배치 처리 중 오류가 발생했습니다.');
+        } finally {
+            workerRef.current?.terminate();
+            workerRef.current = null;
+            setBatchActive(false);
+            setBatchCurrent('');
+        }
+    };
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: {
             'image/*': ['.png', '.jpg', '.jpeg', '.webp']
         },
-        multiple: false
+        multiple: true,
+        maxFiles: 10
     });
 
     return (
-        <div className="mx-auto max-w-4xl px-4 py-20 sm:px-6 lg:px-8 min-h-screen bg-slate-950">
+        <div className="mx-auto max-w-4xl px-4 py-20 sm:px-6 lg:px-8 min-h-screen bg-background text-text-primary">
             <div className="text-center mb-16 animate-in fade-in slide-in-from-top-8 duration-1000">
                 <div className="inline-flex items-center gap-2 bg-red-500/10 text-red-500 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8 border border-red-500/20">
                     <Sparkles className="h-4 w-4" />
                     AI ENGINE A-VERSION
                 </div>
-                <h1 className="text-5xl font-black text-white tracking-tighter mb-4 italic uppercase">이미지 업스케일</h1>
-                <p className="text-slate-400 font-bold max-w-xl mx-auto leading-relaxed">
+                <h1 className="text-5xl font-black text-text-primary tracking-tighter mb-4 italic uppercase">이미지 업스케일</h1>
+                <p className="text-text-secondary font-bold max-w-xl mx-auto leading-relaxed">
                     해상도를 높이고 싶은 이미지를 업로드하세요. <br />
                     인공지능이 픽셀을 분석하여 깨짐 없는 고화질로 복원합니다.
                 </p>
+                <p className="text-[11px] text-text-tertiary font-bold mt-4">무료 배치 업스케일은 최대 10장까지 지원됩니다.</p>
             </div>
 
             <div
@@ -78,14 +241,14 @@ export default function UpscaleUpload() {
                     "relative flex flex-col items-center justify-center min-h-[450px] border-4 border-dashed rounded-[3rem] transition-all cursor-pointer group px-8",
                     isDragActive
                         ? "border-red-500 bg-red-500/5 scale-[0.98]"
-                        : "border-slate-800 bg-slate-900/50 hover:bg-slate-900 hover:border-slate-700 shadow-2xl"
+                        : "border-card-border bg-card-bg/50 hover:bg-card-bg hover:border-card-border shadow-2xl"
                 )}
             >
                 <input {...getInputProps()} />
 
                 <div className={cn(
                     "h-24 w-24 rounded-3xl flex items-center justify-center transition-all duration-500 mb-8",
-                    isDragActive ? "bg-red-500 text-white scale-110 rotate-12" : "bg-slate-800 text-slate-400 group-hover:bg-red-500 group-hover:text-white group-hover:rotate-6"
+                    isDragActive ? "bg-red-500 text-white scale-110 rotate-12" : "bg-card-bg text-text-tertiary group-hover:bg-red-500 group-hover:text-white group-hover:rotate-6"
                 )}>
                     <Upload className="h-10 w-10" />
                 </div>
@@ -94,12 +257,18 @@ export default function UpscaleUpload() {
                     {isDragActive ? "이미지를 여기에 놓으세요" : "여러 이미지 선택"}
                 </button>
 
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">또는 이미지를 여기에 드래그 앤 드롭</p>
+                <p className="text-text-tertiary font-bold uppercase tracking-widest text-[10px]">또는 이미지를 여기에 드래그 앤 드롭</p>
 
                 {error && (
                     <div className="mt-8 flex items-center gap-2 text-red-400 bg-red-500/10 px-6 py-3 rounded-2xl text-sm border border-red-500/20 animate-bounce">
                         <FileWarning className="h-4 w-4" />
                         {error}
+                    </div>
+                )}
+
+                {batchActive && (
+                    <div className="mt-8 text-center text-slate-400 text-sm font-semibold">
+                        배치 업스케일 진행 중: {batchDone}/{batchTotal} • {batchCurrent}
                     </div>
                 )}
 

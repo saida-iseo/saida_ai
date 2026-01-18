@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Zap, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { compressImage, downloadImage, convertImage } from '@/lib/utils/imageProcessor';
+import { buildFilename } from '@/lib/utils/filename';
 
 export default function CompressEditor() {
     const router = useRouter();
@@ -79,7 +80,7 @@ export default function CompressEditor() {
                 compressed = await convertImage(compressed, `image/${downloadFormat}`, 0.95);
             }
             
-            const filename = originalImage.name.replace(/\.[^/.]+$/, '') + `_compressed.${downloadFormat}`;
+            const filename = buildFilename(originalImage.name, 'compress', downloadFormat);
             downloadImage(compressed, filename);
         } catch (error) {
             console.error('다운로드 실패:', error);
@@ -94,7 +95,7 @@ export default function CompressEditor() {
         : '0';
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-slate-950">
+        <div className="flex h-[calc(100vh-64px)] bg-background">
             <div className="flex-grow flex flex-col items-center justify-center p-12 overflow-auto">
                 <div className="relative group max-w-2xl w-full text-center">
                     {compressedUrl ? (

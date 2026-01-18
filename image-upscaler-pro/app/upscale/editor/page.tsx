@@ -11,14 +11,16 @@ import { useUpscale } from '@/hooks/useUpscale';
 import { ArrowLeft, Sparkles, Settings2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { resizeImage, downloadImage, convertImage } from '@/lib/utils/imageProcessor';
+import { buildFilename } from '@/lib/utils/filename';
 
 export default function EditorPage() {
     const router = useRouter();
-    const { originalImage, reset, isProcessing, progressStatus, upscaleFactor, processedImage } = useAppStore();
+    const { originalImage, reset, isProcessing, progressStatus, upscaleFactor, processedImage, targetSize } = useAppStore();
     const [imgUrl, setImgUrl] = useState<string | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [originalBlob, setOriginalBlob] = useState<Blob | null>(null);
-    const { startUpscale } = useUpscale();
+    const { startUpscale, cancelUpscale } = useUpscale();
+    const [zoom, setZoom] = useState<1 | 2>(1);
 
     useEffect(() => {
         if (!originalImage) {
@@ -46,8 +48,8 @@ export default function EditorPage() {
     const updatePreview = useCallback(async (blob: Blob, factor: number) => {
         if (!originalImage) return;
         try {
-            const newWidth = (originalImage.width || 0) * factor;
-            const newHeight = (originalImage.height || 0) * factor;
+            const newWidth = Math.round((originalImage.width || 0) * factor);
+            const newHeight = Math.round((originalImage.height || 0) * factor);
             const resized = await resizeImage(blob, newWidth, newHeight, 0.95);
             const url = URL.createObjectURL(resized);
             if (previewUrl) {
@@ -61,9 +63,12 @@ export default function EditorPage() {
 
     useEffect(() => {
         if (originalBlob && !isProcessing) {
-            updatePreview(originalBlob, upscaleFactor);
+            const scale = targetSize
+                ? Math.min(targetSize.width / (originalImage?.width || 1), targetSize.height / (originalImage?.height || 1))
+                : upscaleFactor;
+            updatePreview(originalBlob, scale);
         }
-    }, [upscaleFactor, originalBlob, isProcessing, updatePreview]);
+    }, [upscaleFactor, targetSize, originalBlob, isProcessing, updatePreview, originalImage]);
 
     // 처리된 이미지가 있으면 그것을 사용
     useEffect(() => {
@@ -83,11 +88,14 @@ export default function EditorPage() {
     }, [processedImage, previewUrl]);
 
     const [downloadFormat, setDownloadFormat] = useState<'png' | 'webp' | 'jpg'>('png');
+    const [downloadQuality, setDownloadQuality] = useState(0.9);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('saida_download_format') as 'png' | 'webp' | 'jpg' | null;
+            const savedQuality = localStorage.getItem('saida_download_quality');
             if (saved) setDownloadFormat(saved);
+            if (savedQuality) setDownloadQuality(Number(savedQuality));
         }
     }, []);
 
@@ -99,23 +107,25 @@ export default function EditorPage() {
                 let finalBlob = blob;
                 const { convertImage } = await import('@/lib/utils/imageProcessor');
                 if (downloadFormat !== 'png') {
-                    finalBlob = await convertImage(blob, `image/${downloadFormat}`, downloadFormat === 'jpg' ? 0.9 : 0.95);
+                    finalBlob = await convertImage(blob, `image/${downloadFormat}`, downloadQuality);
                 }
-                const filename = processedImage.name.replace(/\.[^/.]+$/, '') + `.${downloadFormat}`;
+                const scaleLabel = targetSize ? targetSize.label.replace(/\s+/g, '') : `${scaleFactor}x`;
+                const filename = buildFilename(processedImage.name, `upscale${scaleLabel}`, downloadFormat);
                 downloadImage(finalBlob, filename);
             }
         } else if (originalBlob && previewUrl) {
             // 미리보기 이미지를 다운로드
             try {
-                const newWidth = (originalImage.width || 0) * upscaleFactor;
-                const newHeight = (originalImage.height || 0) * upscaleFactor;
+                const newWidth = Math.round((originalImage.width || 0) * scaleFactor);
+                const newHeight = Math.round((originalImage.height || 0) * scaleFactor);
                 const resized = await resizeImage(originalBlob, newWidth, newHeight, 0.95);
                 const { convertImage } = await import('@/lib/utils/imageProcessor');
                 let finalBlob = resized;
                 if (downloadFormat !== 'png') {
-                    finalBlob = await convertImage(resized, `image/${downloadFormat}`, downloadFormat === 'jpg' ? 0.9 : 0.95);
+                    finalBlob = await convertImage(resized, `image/${downloadFormat}`, downloadQuality);
                 }
-                const filename = originalImage.name.replace(/\.[^/.]+$/, '') + `_${upscaleFactor}x.${downloadFormat}`;
+                const scaleLabel = targetSize ? targetSize.label.replace(/\s+/g, '') : `${scaleFactor}x`;
+                const filename = buildFilename(originalImage.name, `upscale${scaleLabel}`, downloadFormat);
                 downloadImage(finalBlob, filename);
             } catch (error) {
                 console.error('다운로드 실패:', error);
@@ -131,11 +141,14 @@ export default function EditorPage() {
 
     if (!originalImage || !imgUrl) return null;
 
-    const afterWidth = originalImage.width ? originalImage.width * upscaleFactor : undefined;
-    const afterHeight = originalImage.height ? originalImage.height * upscaleFactor : undefined;
+    const scaleFactor = targetSize
+        ? Math.min(targetSize.width / (originalImage.width || 1), targetSize.height / (originalImage.height || 1))
+        : upscaleFactor;
+    const afterWidth = originalImage.width ? Math.round(originalImage.width * scaleFactor) : undefined;
+    const afterHeight = originalImage.height ? Math.round(originalImage.height * scaleFactor) : undefined;
 
     return (
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden bg-slate-950">
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden bg-background">
             {/* Main Preview Area */}
             <div className="flex-grow flex flex-col items-center overflow-auto scrollbar-hide py-12 px-6 bg-[radial-gradient(circle_at_center,_#111_0%,_#020617_100%)]">
                 <div className="w-full max-w-[1100px] flex flex-col gap-8">
@@ -180,6 +193,30 @@ export default function EditorPage() {
                         </div>
                     </div>
 
+                    <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">확대 보기</div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setZoom(1)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all",
+                                    zoom === 1 ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
+                                )}
+                            >
+                                100%
+                            </button>
+                            <button
+                                onClick={() => setZoom(2)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all",
+                                    zoom === 2 ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
+                                )}
+                            >
+                                200%
+                            </button>
+                        </div>
+                    </div>
+
                     {/* The Professional Shake-Free Slider */}
                     <CompareSlider
                         beforeUrl={imgUrl}
@@ -188,12 +225,13 @@ export default function EditorPage() {
                         beforeH={originalImage.height}
                         afterW={afterWidth}
                         afterH={afterHeight}
+                        zoom={zoom}
                     />
 
                     {/* Download Button */}
                     {previewUrl && (
                         <div className="flex flex-col items-center gap-4">
-                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 space-y-4">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block text-center">다운로드 포맷</label>
                                 <div className="flex gap-2">
                                     {(['png', 'webp', 'jpg'] as const).map((fmt) => (
@@ -216,6 +254,26 @@ export default function EditorPage() {
                                         </button>
                                     ))}
                                 </div>
+                                {downloadFormat !== 'png' && (
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block text-center">품질 ({Math.round(downloadQuality * 100)}%)</label>
+                                        <input
+                                            type="range"
+                                            min="0.6"
+                                            max="1"
+                                            step="0.01"
+                                            value={downloadQuality}
+                                            onChange={(e) => {
+                                                const value = Number(e.target.value);
+                                                setDownloadQuality(value);
+                                                if (typeof window !== 'undefined') {
+                                                    localStorage.setItem('saida_download_quality', String(value));
+                                                }
+                                            }}
+                                            className="w-full accent-emerald-500"
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <button
                                 onClick={handleDownload}
@@ -252,7 +310,7 @@ export default function EditorPage() {
             </div>
 
             {/* Options Sidebar */}
-            <OptionsPanel onUpscale={startUpscale} />
+            <OptionsPanel onUpscale={startUpscale} onCancel={cancelUpscale} />
         </div>
     );
 }

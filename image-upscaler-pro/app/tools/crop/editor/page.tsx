@@ -6,6 +6,7 @@ import { imageDb } from '@/lib/db/imageDb';
 import { useRouter } from 'next/navigation';
 import { Scissors, Square, Image as ImageIcon, Maximize, Check, Download } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { buildFilename } from '@/lib/utils/filename';
 
 export default function CropEditor() {
     const router = useRouter();
@@ -63,7 +64,7 @@ export default function CropEditor() {
 
             const { cropImage, downloadImage } = await import('@/lib/utils/imageProcessor');
             const cropped = await cropImage(blob, cropX, cropY, cropWidth, cropHeight);
-            const filename = originalImage.name.replace(/\.[^/.]+$/, '') + `_cropped.${originalImage.type.split('/')[1] || 'png'}`;
+            const filename = buildFilename(originalImage.name, 'crop', originalImage.type.split('/')[1] || 'png');
             downloadImage(cropped, filename);
         } catch (error) {
             console.error('크롭 실패:', error);
@@ -76,7 +77,7 @@ export default function CropEditor() {
     if (!originalImage || !imgUrl) return null;
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-slate-950">
+        <div className="flex h-[calc(100vh-64px)] bg-background">
             <div className="flex-grow flex flex-col items-center justify-center p-12 overflow-auto bg-[radial-gradient(circle_at_center,_#111_0%,_#020617_100%)]">
                 <div className="relative group max-w-2xl w-full">
                     {/* Crop Overlay Mock */}
@@ -108,6 +109,15 @@ export default function CropEditor() {
                     <AspectBtn active={aspect === 1} onClick={() => setAspect(1)} icon={Square} label="1:1" />
                     <AspectBtn active={aspect === 16 / 9} onClick={() => setAspect(16 / 9)} icon={ImageIcon} label="16:9" />
                     <AspectBtn active={aspect === 4 / 3} onClick={() => setAspect(4 / 3)} icon={ImageIcon} label="4:3" />
+                </div>
+
+                <div className="mt-6">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">SNS 규격</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <AspectBtn active={aspect === 1} onClick={() => setAspect(1)} icon={ImageIcon} label="인스타 1:1" />
+                        <AspectBtn active={aspect === 9 / 16} onClick={() => setAspect(9 / 16)} icon={ImageIcon} label="릴스 9:16" />
+                        <AspectBtn active={aspect === 16 / 9} onClick={() => setAspect(16 / 9)} icon={ImageIcon} label="유튜브 16:9" />
+                    </div>
                 </div>
 
                 <div className="mt-auto pt-8 border-t border-slate-800">

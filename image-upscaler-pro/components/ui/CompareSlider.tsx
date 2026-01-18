@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { cn } from '@/lib/utils/cn';
 
 interface CompareSliderProps {
     beforeUrl: string;
@@ -10,6 +9,7 @@ interface CompareSliderProps {
     beforeH?: number;
     afterW?: number;
     afterH?: number;
+    zoom?: number;
 }
 
 export default function CompareSlider({
@@ -18,7 +18,8 @@ export default function CompareSlider({
     beforeW,
     beforeH,
     afterW,
-    afterH
+    afterH,
+    zoom = 1
 }: CompareSliderProps) {
     const [sliderPos, setSliderPos] = useState(50);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -59,6 +60,7 @@ export default function CompareSlider({
                 src={beforeUrl}
                 alt="Before"
                 className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none select-none"
+                style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
                 draggable={false}
             />
 
@@ -69,7 +71,9 @@ export default function CompareSlider({
                     alt="After"
                     className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none select-none"
                     style={{
-                        clipPath: `inset(0 ${sliderPos}% 0 0)` // slider=0 -> AFTER 100% visible, slider=100 -> AFTER 0% visible
+                        clipPath: `inset(0 ${sliderPos}% 0 0)`,
+                        transform: `scale(${zoom})`,
+                        transformOrigin: 'center center'
                     }}
                     draggable={false}
                 />

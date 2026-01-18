@@ -6,6 +6,7 @@ import { imageDb } from '@/lib/db/imageDb';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Droplets, Download, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { buildFilename } from '@/lib/utils/filename';
 
 interface BlurRegion {
     id: string;
@@ -17,19 +18,41 @@ interface BlurRegion {
     borderRadius: number; // 0-100 (0 = 사각형, 100 = 완전한 원)
 }
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const getBlurPx = (intensity: number, widthPx: number, heightPx: number) => {
+    const minBlur = 2;
+    const maxBlur = Math.max(minBlur, Math.min(widthPx, heightPx) / 5);
+    const t = clamp(intensity / 100, 0, 1);
+    const curved = Math.pow(t, 1.15);
+    return Math.round(minBlur + (maxBlur - minBlur) * curved);
+};
+
+const getPreviewBlurPx = (intensity: number) => {
+    const minBlur = 2;
+    const maxBlur = 18;
+    const t = clamp(intensity / 100, 0, 1);
+    return Math.round(minBlur + (maxBlur - minBlur) * t);
+};
+
 export default function BlurEditor() {
     const router = useRouter();
     const { originalImage, reset } = useAppStore();
     const [imgUrl, setImgUrl] = useState<string | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+    const [originalBlob, setOriginalBlob] = useState<Blob | null>(null);
     const [regions, setRegions] = useState<BlurRegion[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState({ x: 0, y: 0 });
     const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isPreviewing, setIsPreviewing] = useState(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
+
 
     useEffect(() => {
         if (!originalImage) {
@@ -39,12 +62,126 @@ export default function BlurEditor() {
 
         const load = async () => {
             const blob = await imageDb.getImage(originalImage.id);
-            if (blob) setImgUrl(URL.createObjectURL(blob));
+            if (blob) {
+                setOriginalBlob(blob);
+                setImgUrl(URL.createObjectURL(blob));
+            }
         };
         load();
 
-        return () => { if (imgUrl) URL.revokeObjectURL(imgUrl); };
     }, [originalImage, router]);
+
+    useEffect(() => {
+        return () => {
+            if (imgUrl) URL.revokeObjectURL(imgUrl);
+        };
+    }, [imgUrl]);
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
+
+    const drawRoundedRectPath = (
+        ctx: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        r: number
+    ) => {
+        const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        if ('roundRect' in ctx) {
+            ctx.roundRect(x, y, w, h, radius);
+            return;
+        }
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+    };
+
+    const renderPreview = useCallback(async (blob: Blob, areas: BlurRegion[]) => {
+        if (!originalImage) return null;
+        const img = new Image();
+        const blobUrl = URL.createObjectURL(blob);
+        img.src = blobUrl;
+        await img.decode();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        ctx.drawImage(img, 0, 0);
+
+        for (const r of areas) {
+            const rx = Math.round(r.x * canvas.width);
+            const ry = Math.round(r.y * canvas.height);
+            const rw = Math.max(1, Math.round(r.width * canvas.width));
+            const rh = Math.max(1, Math.round(r.height * canvas.height));
+            if (rw <= 0 || rh <= 0) continue;
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = rw;
+            tempCanvas.height = rh;
+            const tctx = tempCanvas.getContext('2d');
+            if (!tctx) continue;
+            const blurPx = getBlurPx(r.intensity, rw, rh);
+            const strength = clamp(r.intensity / 100, 0, 1);
+            tctx.filter = `blur(${blurPx}px)`;
+            tctx.drawImage(img, rx, ry, rw, rh, 0, 0, rw, rh);
+
+            ctx.save();
+            ctx.beginPath();
+            const radius = (r.borderRadius / 100) * Math.min(rw, rh) / 2;
+            drawRoundedRectPath(ctx, rx, ry, rw, rh, radius);
+            ctx.clip();
+            ctx.globalAlpha = 0.35 + 0.65 * strength;
+            ctx.drawImage(tempCanvas, rx, ry);
+            ctx.restore();
+        }
+
+        const mimeType = originalImage.type || 'image/png';
+        const quality = mimeType === 'image/png' ? undefined : 0.95;
+        const outBlob = await new Promise<Blob | null>((resolve) => {
+            canvas.toBlob((b) => resolve(b), mimeType, quality);
+        });
+        URL.revokeObjectURL(blobUrl);
+        return outBlob;
+    }, [originalImage]);
+
+    useEffect(() => {
+        if (!originalBlob) return;
+        if (regions.length === 0) {
+            setPreviewUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return null;
+            });
+            setPreviewBlob(null);
+            return;
+        }
+        setIsPreviewing(true);
+        const timer = setTimeout(async () => {
+            try {
+                const outBlob = await renderPreview(originalBlob, regions);
+                if (!outBlob) return;
+                const url = URL.createObjectURL(outBlob);
+                setPreviewBlob(outBlob);
+                setPreviewUrl((prev) => {
+                    if (prev) URL.revokeObjectURL(prev);
+                    return url;
+                });
+            } finally {
+                setIsPreviewing(false);
+            }
+        }, 150);
+        return () => clearTimeout(timer);
+    }, [originalBlob, regions, renderPreview]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (!imageRef.current) return;
@@ -101,66 +238,19 @@ export default function BlurEditor() {
     };
 
     const handleDownload = async () => {
-        if (!imageRef.current || !originalImage) return;
+        if (!originalImage) return;
         setIsProcessing(true);
 
         try {
-            const canvas = document.createElement('canvas');
-            canvas.width = originalImage.width!;
-            canvas.height = originalImage.height!;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-
-            // Draw original
-            ctx.drawImage(imageRef.current, 0, 0);
-
-            // Apply blurs
-            for (const r of regions) {
-                const rx = r.x * canvas.width;
-                const ry = r.y * canvas.height;
-                const rw = r.width * canvas.width;
-                const rh = r.height * canvas.height;
-
-                // Create a temp canvas for the blurred part
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = rw;
-                tempCanvas.height = rh;
-                const tctx = tempCanvas.getContext('2d');
-                if (!tctx) continue;
-
-                // Apply blur
-                tctx.filter = `blur(${r.intensity}px)`;
-                tctx.drawImage(canvas, rx, ry, rw, rh, 0, 0, rw, rh);
-
-                // Create mask for rounded corners
-                const maskCanvas = document.createElement('canvas');
-                maskCanvas.width = rw;
-                maskCanvas.height = rh;
-                const maskCtx = maskCanvas.getContext('2d');
-                if (!maskCtx) continue;
-
-                const radius = (r.borderRadius / 100) * Math.min(rw, rh) / 2;
-                maskCtx.fillStyle = 'black';
-                maskCtx.fillRect(0, 0, rw, rh);
-                maskCtx.globalCompositeOperation = 'destination-out';
-                maskCtx.beginPath();
-                maskCtx.roundRect(0, 0, rw, rh, radius);
-                maskCtx.fill();
-
-                // Apply mask
-                ctx.save();
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.drawImage(maskCanvas, rx, ry);
-                ctx.globalCompositeOperation = 'source-in';
-                ctx.drawImage(tempCanvas, rx, ry);
-                ctx.restore();
+            let blob = previewBlob;
+            if (!blob && originalBlob) {
+                blob = await renderPreview(originalBlob, regions);
             }
-
-            const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), originalImage.type));
+            if (!blob) return;
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Saida_Blurred_${originalImage.name}`;
+            a.download = buildFilename(originalImage.name, 'blur', originalImage.type.split('/')[1] || 'png');
             a.click();
             URL.revokeObjectURL(url);
         } catch (err) {
@@ -187,7 +277,7 @@ export default function BlurEditor() {
                 >
                     <img
                         ref={imageRef}
-                        src={imgUrl}
+                        src={previewUrl ?? imgUrl}
                         alt="Blur target"
                         className="max-h-[80vh] w-auto pointer-events-none"
                     />
@@ -205,7 +295,7 @@ export default function BlurEditor() {
                                 top: `${r.y * 100}%`,
                                 width: `${r.width * 100}%`,
                                 height: `${r.height * 100}%`,
-                                backdropFilter: `blur(${r.intensity / 2}px)`,
+                                backdropFilter: previewUrl ? 'none' : `blur(${getPreviewBlurPx(r.intensity)}px)`,
                                 borderRadius: `${r.borderRadius}%`
                             }}
                             onClick={(e) => { e.stopPropagation(); setSelectedId(r.id); }}
@@ -316,15 +406,15 @@ export default function BlurEditor() {
                 <div className="mt-10 pt-8 border-t border-white/5">
                     <button
                         onClick={handleDownload}
-                        disabled={isProcessing || regions.length === 0}
+                        disabled={isProcessing || isPreviewing || regions.length === 0}
                         className={cn(
                             "w-full py-5 rounded-[2rem] font-black text-lg transition-all flex items-center justify-center gap-3 shadow-2xl",
-                            (isProcessing || regions.length === 0)
+                            (isProcessing || isPreviewing || regions.length === 0)
                                 ? "bg-slate-800 text-slate-600 cursor-not-allowed"
                                 : "bg-red-500 hover:bg-red-600 text-white hover:scale-[1.02] active:scale-[0.98] shadow-red-500/20"
                         )}
                     >
-                        {isProcessing ? (
+                        {(isProcessing || isPreviewing) ? (
                             <>
                                 <Loader2 className="h-6 w-6 animate-spin" />
                                 처리 중...

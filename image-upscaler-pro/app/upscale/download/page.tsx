@@ -10,11 +10,12 @@ import HelpPanel from '@/components/shared/HelpPanel';
 import Toast from '@/components/shared/Toast';
 import { Download, RotateCcw, Share2, Plus, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { buildFilename } from '@/lib/utils/filename';
 import Link from 'next/link';
 
 export default function DownloadPage() {
     const router = useRouter();
-    const { originalImage, processedImage, reset } = useAppStore();
+    const { originalImage, processedImage, reset, upscaleFactor, targetSize } = useAppStore();
     const [originalUrl, setOriginalUrl] = useState<string | null>(null);
     const [processedUrl, setProcessedUrl] = useState<string | null>(null);
     const [showToast, setShowToast] = useState(false);
@@ -44,7 +45,9 @@ export default function DownloadPage() {
         // Using a more robust download method
         const link = document.createElement('a');
         link.href = processedUrl;
-        link.setAttribute('download', processedImage.name);
+        const scaleLabel = targetSize ? targetSize.label.replace(/\s+/g, '') : `${upscaleFactor}x`;
+        const ext = processedImage.name.split('.').pop() || 'png';
+        link.setAttribute('download', buildFilename(originalImage?.name || processedImage.name, `upscale${scaleLabel}`, ext));
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -110,7 +113,7 @@ export default function DownloadPage() {
                                 <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-1.5">최종 결과물</p>
                                 <h2 className="text-xl font-bold text-text-primary truncate mb-2">{processedImage.name}</h2>
                                 <div className="inline-flex items-center gap-2 text-accent bg-accent/10 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-accent/20">
-                                    AI Upscale Success (2x)
+                                    AI Upscale Success ({targetSize ? targetSize.label : `${upscaleFactor}x`})
                                 </div>
                             </div>
 
@@ -123,6 +126,11 @@ export default function DownloadPage() {
                                     <p className="text-[9px] font-bold text-text-tertiary uppercase mb-1">해상도</p>
                                     <p className="font-bold text-accent">{processedImage.width}x{processedImage.height}</p>
                                 </div>
+                            </div>
+
+                            <div className="text-[11px] font-semibold text-text-tertiary bg-background border border-card-border rounded-2xl px-4 py-3 mb-6">
+                                {(originalImage.size / 1024 / 1024).toFixed(2)}MB → {(processedImage.size / 1024 / 1024).toFixed(2)}MB /
+                                {` ${originalImage.width}x${originalImage.height}px → ${processedImage.width}x${processedImage.height}px`}
                             </div>
 
                             <DownloadGate onDownload={handleDownload}>

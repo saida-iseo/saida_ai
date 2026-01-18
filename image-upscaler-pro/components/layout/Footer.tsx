@@ -33,6 +33,8 @@ export default function Footer() {
                             <FooterLink href="/tools/compress" label="이미지 압축 최적화" />
                             <FooterLink href="/tools/blur" label="블러 및 흐림 처리" />
                             <FooterLink href="/tools/watermark-maker" label="워터마크 제작" />
+                            <FooterLink href="/tools/decorate" label="이미지 꾸미기" />
+                            <FooterLink href="/ai" label="AI 스튜디오" />
                         </ul>
                     </div>
 

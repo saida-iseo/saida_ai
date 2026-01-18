@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { MoveDiagonal, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { resizeImage, downloadImage } from '@/lib/utils/imageProcessor';
+import { buildFilename } from '@/lib/utils/filename';
 
 export default function ResizeEditor() {
     const router = useRouter();
@@ -91,7 +92,7 @@ export default function ResizeEditor() {
         if (!originalBlob || dims.w <= 0 || dims.h <= 0) return;
         try {
             const resized = await resizeImage(originalBlob, dims.w, dims.h, 0.95);
-            const filename = originalImage.name.replace(/\.[^/.]+$/, '') + `_${dims.w}x${dims.h}.${originalImage.type.split('/')[1] || 'png'}`;
+            const filename = buildFilename(originalImage.name, `resize${dims.w}x${dims.h}`, originalImage.type.split('/')[1] || 'png');
             downloadImage(resized, filename);
         } catch (error) {
             console.error('다운로드 실패:', error);
