@@ -24,13 +24,8 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
         isProcessing,
         progress,
         progressStatus,
-        progressDetail,
-        diagnostics
+        progressDetail
     } = useAppStore();
-
-    const modelHost = diagnostics?.modelUrl ? diagnostics.modelUrl.replace(/^https?:\/\//, '').split('/')[0] : null;
-    const modelFile = diagnostics?.modelUrl ? diagnostics.modelUrl.split('/').slice(-1)[0] : null;
-    const modelDisplay = diagnostics?.modelId || (modelHost && modelFile ? `${modelHost}/${modelFile}` : null);
 
     useEffect(() => {
         if (upscaleMode !== 'photo' && faceRestore) {
