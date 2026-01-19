@@ -28,41 +28,9 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
         diagnostics
     } = useAppStore();
 
-    const [favorites, setFavorites] = useState<any[]>([]);
     const modelHost = diagnostics?.modelUrl ? diagnostics.modelUrl.replace(/^https?:\/\//, '').split('/')[0] : null;
     const modelFile = diagnostics?.modelUrl ? diagnostics.modelUrl.split('/').slice(-1)[0] : null;
     const modelDisplay = diagnostics?.modelId || (modelHost && modelFile ? `${modelHost}/${modelFile}` : null);
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const stored = localStorage.getItem('saida_upscale_favorites');
-        if (stored) setFavorites(JSON.parse(stored));
-    }, []);
-
-    const saveFavorite = (index: number) => {
-        const next = [...favorites];
-        next[index] = {
-            upscaleMode,
-            upscaleFactor,
-            qualityPreset,
-            fidelity,
-            faceRestore,
-            gpuAcceleration,
-            tileAuto,
-            tileSize,
-            tileOverlap,
-            maxPixels,
-            targetSize
-        };
-        setFavorites(next);
-        localStorage.setItem('saida_upscale_favorites', JSON.stringify(next));
-    };
-
-    const loadFavorite = (index: number) => {
-        const preset = favorites[index];
-        if (!preset) return;
-        setOptions(preset);
-    };
 
     useEffect(() => {
         if (upscaleMode !== 'photo' && faceRestore) {
@@ -284,61 +252,6 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                 </div>
             </div>
 
-            {/* SNS Presets */}
-            <div className="mb-8">
-                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-3 block">SNS 규격</label>
-                <div className="grid grid-cols-3 gap-2">
-                    {[
-                        { label: '인스타 1:1', width: 1080, height: 1080 },
-                        { label: '릴스 9:16', width: 1080, height: 1920 },
-                        { label: '유튜브 16:9', width: 1920, height: 1080 },
-                    ].map((preset) => (
-                        <button
-                            key={preset.label}
-                            onClick={() => setOptions({ targetSize: preset })}
-                            className={cn(
-                                "py-2.5 rounded-xl font-bold text-[10px] uppercase transition-all border",
-                                targetSize?.label === preset.label
-                                    ? "border-emerald-400 bg-emerald-500 text-white shadow-lg"
-                                    : "border-card-border bg-background text-text-secondary hover:text-text-primary"
-                            )}
-                        >
-                            {preset.label}
-                        </button>
-                    ))}
-                </div>
-                {targetSize && (
-                    <button
-                        onClick={() => setOptions({ targetSize: null })}
-                        className="mt-3 text-[10px] font-bold text-text-tertiary uppercase tracking-widest hover:text-text-primary"
-                    >
-                        SNS 규격 해제
-                    </button>
-                )}
-            </div>
-
-            {/* Favorite Presets */}
-            <div className="mb-8">
-                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-3 block">즐겨찾기 프리셋</label>
-                <div className="grid grid-cols-3 gap-2">
-                    {[0, 1, 2].map((index) => (
-                        <div key={index} className="flex flex-col gap-2">
-                            <button
-                                onClick={() => loadFavorite(index)}
-                                className="py-2 rounded-xl text-[10px] font-bold uppercase border border-card-border bg-background text-text-secondary hover:text-text-primary"
-                            >
-                                불러오기 {index + 1}
-                            </button>
-                            <button
-                                onClick={() => saveFavorite(index)}
-                                className="py-2 rounded-xl text-[10px] font-bold uppercase border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:text-white"
-                            >
-                                저장 {index + 1}
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
 
             {/* Progress Status Display */}
             {isProcessing && (

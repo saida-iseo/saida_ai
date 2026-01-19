@@ -7,9 +7,9 @@ import { useRouter } from 'next/navigation';
 import OptionsPanel from '@/components/ui/OptionsPanel';
 import HelpPanel from '@/components/shared/HelpPanel';
 import { useUpscale } from '@/hooks/useUpscale';
-import { ArrowLeft, Sparkles, Settings2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Settings2, Loader2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { resizeImage, downloadImage, convertImage } from '@/lib/utils/imageProcessor';
+import { resizeImage, downloadImage } from '@/lib/utils/imageProcessor';
 import { buildFilename } from '@/lib/utils/filename';
 
 export default function EditorPage() {
@@ -51,14 +51,14 @@ export default function EditorPage() {
             const newHeight = Math.round((originalImage.height || 0) * factor);
             const resized = await resizeImage(blob, newWidth, newHeight, 0.95);
             const url = URL.createObjectURL(resized);
-            if (previewUrl) {
-                URL.revokeObjectURL(previewUrl);
-            }
-            setPreviewUrl(url);
+            setPreviewUrl(prev => {
+                if (prev) URL.revokeObjectURL(prev);
+                return url;
+            });
         } catch (error) {
             console.error('미리보기 생성 실패:', error);
         }
-    }, [originalImage, previewUrl]);
+    }, [originalImage]);
 
     useEffect(() => {
         if (originalBlob && !isProcessing) {
@@ -76,41 +76,26 @@ export default function EditorPage() {
                 const blob = await imageDb.getImage(processedImage.id);
                 if (blob) {
                     const url = URL.createObjectURL(blob);
-                    if (previewUrl) {
-                        URL.revokeObjectURL(previewUrl);
-                    }
-                    setPreviewUrl(url);
+                    setPreviewUrl(prev => {
+                        if (prev) URL.revokeObjectURL(prev);
+                        return url;
+                    });
                 }
             };
             loadProcessed();
         }
-    }, [processedImage, previewUrl]);
+    }, [processedImage]);
 
-    const [downloadFormat, setDownloadFormat] = useState<'png' | 'webp' | 'jpg'>('png');
-    const [downloadQuality, setDownloadQuality] = useState(0.9);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('saida_download_format') as 'png' | 'webp' | 'jpg' | null;
-            const savedQuality = localStorage.getItem('saida_download_quality');
-            if (saved) setDownloadFormat(saved);
-            if (savedQuality) setDownloadQuality(Number(savedQuality));
-        }
-    }, []);
 
     const handleDownload = async () => {
         if (processedImage) {
             // 처리된 이미지가 있으면 그것을 다운로드
             const blob = await imageDb.getImage(processedImage.id);
             if (blob) {
-                let finalBlob = blob;
-                const { convertImage } = await import('@/lib/utils/imageProcessor');
-                if (downloadFormat !== 'png') {
-                    finalBlob = await convertImage(blob, `image/${downloadFormat}`, downloadQuality);
-                }
                 const scaleLabel = targetSize ? targetSize.label.replace(/\s+/g, '') : `${scaleFactor}x`;
-                const filename = buildFilename(processedImage.name, `upscale${scaleLabel}`, downloadFormat);
-                downloadImage(finalBlob, filename);
+                const ext = processedImage.name.split('.').pop() || 'png';
+                const filename = buildFilename(processedImage.name, `upscale${scaleLabel}`, ext);
+                downloadImage(blob, filename);
             }
         } else if (originalBlob && previewUrl && originalImage) {
             // 미리보기 이미지를 다운로드
@@ -118,14 +103,10 @@ export default function EditorPage() {
                 const newWidth = Math.round((originalImage.width || 0) * scaleFactor);
                 const newHeight = Math.round((originalImage.height || 0) * scaleFactor);
                 const resized = await resizeImage(originalBlob, newWidth, newHeight, 0.95);
-                const { convertImage } = await import('@/lib/utils/imageProcessor');
-                let finalBlob = resized;
-                if (downloadFormat !== 'png') {
-                    finalBlob = await convertImage(resized, `image/${downloadFormat}`, downloadQuality);
-                }
                 const scaleLabel = targetSize ? targetSize.label.replace(/\s+/g, '') : `${scaleFactor}x`;
-                const filename = buildFilename(originalImage.name, `upscale${scaleLabel}`, downloadFormat);
-                downloadImage(finalBlob, filename);
+                const ext = originalImage.name.split('.').pop() || 'png';
+                const filename = buildFilename(originalImage.name, `upscale${scaleLabel}`, ext);
+                downloadImage(resized, filename);
             } catch (error) {
                 console.error('다운로드 실패:', error);
                 alert('다운로드 중 오류가 발생했습니다.');
@@ -285,55 +266,11 @@ export default function EditorPage() {
                     {/* Download Button */}
                     {previewUrl && (
                         <div className="flex flex-col items-center gap-4">
-                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 space-y-4">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block text-center">다운로드 포맷</label>
-                                <div className="flex gap-2">
-                                    {(['png', 'webp', 'jpg'] as const).map((fmt) => (
-                                        <button
-                                            key={fmt}
-                                            onClick={() => {
-                                                setDownloadFormat(fmt);
-                                                if (typeof window !== 'undefined') {
-                                                    localStorage.setItem('saida_download_format', fmt);
-                                                }
-                                            }}
-                                            className={cn(
-                                                "px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all",
-                                                downloadFormat === fmt
-                                                    ? "bg-emerald-500 text-white"
-                                                    : "bg-slate-800 text-slate-400 hover:text-white"
-                                            )}
-                                        >
-                                            {fmt.toUpperCase()}
-                                        </button>
-                                    ))}
-                                </div>
-                                {downloadFormat !== 'png' && (
-                                    <div>
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block text-center">품질 ({Math.round(downloadQuality * 100)}%)</label>
-                                        <input
-                                            type="range"
-                                            min="0.6"
-                                            max="1"
-                                            step="0.01"
-                                            value={downloadQuality}
-                                            onChange={(e) => {
-                                                const value = Number(e.target.value);
-                                                setDownloadQuality(value);
-                                                if (typeof window !== 'undefined') {
-                                                    localStorage.setItem('saida_download_quality', String(value));
-                                                }
-                                            }}
-                                            className="w-full accent-emerald-500"
-                                        />
-                                    </div>
-                                )}
-                            </div>
                             <button
                                 onClick={handleDownload}
                                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-black px-8 py-4 rounded-2xl text-lg transition-all shadow-xl flex items-center gap-3 active:scale-95"
                             >
-                                <Loader2 className="h-5 w-5" />
+                                <Download className="h-5 w-5" />
                                 {processedImage ? 'AI 처리된 이미지 다운로드' : '미리보기 이미지 다운로드'}
                             </button>
                         </div>
