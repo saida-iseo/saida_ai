@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import OptionsPanel from '@/components/ui/OptionsPanel';
 import HelpPanel from '@/components/shared/HelpPanel';
 import { useUpscale } from '@/hooks/useUpscale';
-import { ArrowLeft, Sparkles, Settings2, Loader2, Download } from 'lucide-react';
+import { ArrowLeft, Sparkles, Settings2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { resizeImage, downloadImage } from '@/lib/utils/imageProcessor';
 import { buildFilename } from '@/lib/utils/filename';
@@ -271,18 +271,6 @@ export default function EditorPage() {
                         </div>
                     </div>
 
-                    {/* Download Button - Only show when processed */}
-                    {processedImage && previewUrl && (
-                        <div className="flex flex-col items-center gap-4">
-                            <button
-                                onClick={handleDownload}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-white font-black px-8 py-4 rounded-2xl text-lg transition-all shadow-xl flex items-center gap-3 active:scale-95"
-                            >
-                                <Download className="h-5 w-5" />
-                                AI 처리된 이미지 다운로드
-                            </button>
-                        </div>
-                    )}
 
                     {/* Bottom Guide Panels */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">

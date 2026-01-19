@@ -129,23 +129,6 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                 )}
             </div>
 
-            {/* Fidelity Slider */}
-            <div className="mb-8">
-                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-3 block">Fidelity (원본 충실도)</label>
-                <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-text-tertiary">보수적</span>
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={fidelity}
-                        onChange={(e) => setOptions({ fidelity: Number(e.target.value) })}
-                        className="w-full accent-emerald-500 h-2 bg-card-border rounded-full appearance-none cursor-pointer"
-                        disabled={isProcessing}
-                    />
-                    <span className="text-[10px] font-bold text-text-tertiary">선명</span>
-                </div>
-            </div>
 
             {/* Toggles */}
             <div className="mb-8 space-y-2">
@@ -166,82 +149,7 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                 />
             </div>
 
-            {/* Diagnostics */}
-            <div className="mb-8">
-                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-3 block">진단</label>
-                <div className="rounded-2xl bg-slate-900/40 border border-slate-800/60 p-4 space-y-2 text-[11px]">
-                    <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-semibold">런타임</span>
-                        <span className="text-slate-200 font-bold">
-                            {diagnostics?.runtime ?? (isProcessing ? '분석 중' : '대기')}
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-semibold">백엔드</span>
-                        <span className="text-slate-200 font-bold">{diagnostics?.provider ?? '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-semibold">경로</span>
-                        <span className="text-slate-200 font-bold">{diagnostics?.path ?? '—'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-semibold">모델</span>
-                        <span className="text-slate-200 font-bold text-right max-w-[180px] truncate">
-                            {modelDisplay ?? '—'}
-                        </span>
-                    </div>
-                    {diagnostics?.fallback && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-amber-400 font-semibold">폴백</span>
-                            <span className="text-amber-200 font-bold">{diagnostics.fallback}</span>
-                        </div>
-                    )}
-                    {diagnostics?.lastError && (
-                        <div className="pt-2 border-t border-slate-800 text-[10px] text-rose-300">
-                            {diagnostics.lastError}
-                        </div>
-                    )}
-                </div>
-            </div>
 
-            {/* Tile Controls */}
-            <div className="mb-8 space-y-4">
-                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-3 block">타일링 안정화</label>
-                <ToggleBtn
-                    label="자동 타일링"
-                    active={tileAuto}
-                    onClick={() => setOptions({ tileAuto: !tileAuto })}
-                />
-                {!tileAuto && (
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-[9px] font-bold text-text-tertiary uppercase tracking-widest">타일 크기</label>
-                            <input
-                                type="number"
-                                min="256"
-                                max="1024"
-                                value={tileSize}
-                                onChange={(e) => setOptions({ tileSize: Number(e.target.value) })}
-                                className="mt-2 w-full bg-background border border-card-border rounded-xl px-3 py-2 text-xs font-bold text-text-primary"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-bold text-text-tertiary uppercase tracking-widest">오버랩</label>
-                            <input
-                                type="number"
-                                min="8"
-                                max="64"
-                                value={tileOverlap}
-                                onChange={(e) => setOptions({ tileOverlap: Number(e.target.value) })}
-                                className="mt-2 w-full bg-background border border-card-border rounded-xl px-3 py-2 text-xs font-bold text-text-primary"
-                            />
-                        </div>
-                    </div>
-                )}
-                <div className="text-[10px] text-text-tertiary">
-                    최대 픽셀 제한: {(maxPixels / 1000000).toFixed(1)} MP
-                </div>
-            </div>
 
 
             {/* Progress Status Display */}
