@@ -112,14 +112,8 @@ export default function EditorPage() {
 
     const handleDownload = async () => {
         if (processedImage) {
-            // 처리된 이미지가 있으면 그것을 다운로드
-            const blob = await imageDb.getImage(processedImage.id);
-            if (blob) {
-                const scaleLabel = targetSize ? targetSize.label.replace(/\s+/g, '') : `${scaleFactor}x`;
-                const ext = processedImage.name.split('.').pop() || 'png';
-                const filename = buildFilename(processedImage.name, `upscale${scaleLabel}`, ext);
-                downloadImage(blob, filename);
-            }
+            // 처리된 이미지가 있으면 다운로드 페이지로 이동
+            router.push('/upscale/download');
         } else if (originalBlob && previewUrl && originalImage) {
             // 미리보기 이미지를 다운로드
             try {

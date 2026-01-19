@@ -89,7 +89,7 @@ export function useUpscale() {
                 setProcessing(false);
                 setProgressStatus('');
                 setProgressDetail({ doneTiles: 0, totalTiles: 0, etaSec: null });
-                router.push('/upscale/download');
+                // 자동으로 페이지 이동하지 않음 - 현재 페이지에 반영
             } else if (message.type === 'diagnostic') {
                 setDiagnostics(message.data);
             } else if (message.type === 'error') {

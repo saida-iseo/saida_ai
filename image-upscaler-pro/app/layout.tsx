@@ -25,6 +25,23 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Google AdSense */}
+        {process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID && (
+          <>
+            <script
+              async
+              src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID}`}
+              crossOrigin="anonymous"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  (adsbygoogle = window.adsbygoogle || []).push({});
+                `,
+              }}
+            />
+          </>
+        )}
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-background text-text-primary transition-colors duration-300`}>
         <SessionProvider>
