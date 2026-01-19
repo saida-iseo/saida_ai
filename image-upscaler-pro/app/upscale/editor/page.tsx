@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { imageDb } from '@/lib/db/imageDb';
 import { useRouter } from 'next/navigation';
@@ -20,6 +20,7 @@ export default function EditorPage() {
     const [originalBlob, setOriginalBlob] = useState<Blob | null>(null);
     const { startUpscale, cancelUpscale } = useUpscale();
     const [zoom, setZoom] = useState<1 | 2>(1);
+    const autoStartedRef = useRef(false);
 
     useEffect(() => {
         if (!originalImage) {
@@ -27,14 +28,29 @@ export default function EditorPage() {
             return;
         }
 
+        // 새로운 이미지가 로드될 때마다 자동 시작 플래그 리셋
+        autoStartedRef.current = false;
+
         const loadOriginal = async () => {
             const blob = await imageDb.getImage(originalImage.id);
             if (blob) {
                 setOriginalBlob(blob);
-                setImgUrl(URL.createObjectURL(blob));
+                setImgUrl(prev => {
+                    if (prev) URL.revokeObjectURL(prev);
+                    return URL.createObjectURL(blob);
+                });
                 // 즉시 2x 스케일링 미리보기 생성
                 const defaultFactor = upscaleFactor || 2;
                 await updatePreview(blob, defaultFactor);
+                
+                // 자동으로 2x 스케일링 시작 (처음 로드 시에만, 한 번만)
+                if (!processedImage && !isProcessing && !autoStartedRef.current) {
+                    autoStartedRef.current = true;
+                    // 약간의 지연 후 자동 시작
+                    setTimeout(() => {
+                        startUpscale();
+                    }, 500);
+                }
             }
         };
 
@@ -44,7 +60,7 @@ export default function EditorPage() {
             if (imgUrl) URL.revokeObjectURL(imgUrl);
             if (previewUrl) URL.revokeObjectURL(previewUrl);
         };
-    }, [originalImage, router]);
+    }, [originalImage, router, processedImage, isProcessing, upscaleFactor, updatePreview, startUpscale]);
 
     const updatePreview = useCallback(async (blob: Blob, factor: number) => {
         if (!originalImage) return;

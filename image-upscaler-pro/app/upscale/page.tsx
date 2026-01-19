@@ -15,7 +15,7 @@ import type { UpscaleOptions, WorkerResponse } from '@/lib/upscale/types';
 
 export default function UpscaleUpload() {
     const router = useRouter();
-    const setOriginalImage = useAppStore((state) => state.setOriginalImage);
+    const { setOriginalImage, setOptions } = useAppStore();
     const {
         upscaleFactor,
         outputFormat,
@@ -83,6 +83,9 @@ export default function UpscaleUpload() {
                 width: img.width,
                 height: img.height,
             });
+
+            // 기본값을 2x로 설정
+            setOptions({ upscaleFactor: 2, upscaleMode: 'photo' });
 
             const thumbUrl = await createThumbnail(file);
             addRecentHistory({
