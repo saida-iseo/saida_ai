@@ -2,63 +2,26 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Image as ImageIcon, Type, Sparkles, Square } from 'lucide-react';
+import { ArrowLeft, Download, Image as ImageIcon, Type, Sparkles, Square, Move } from 'lucide-react';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { imageDb } from '@/lib/db/imageDb';
 import { cn } from '@/lib/utils/cn';
 import { buildFilename } from '@/lib/utils/filename';
 import { downloadImage } from '@/lib/utils/imageProcessor';
-
-const STICKERS = [
-    {
-        id: 'sparkle',
-        label: 'Sparkle',
-        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <defs>
-    <radialGradient id="g" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="70%" stop-color="#9ae6b4"/>
-      <stop offset="100%" stop-color="#10b981"/>
-    </radialGradient>
-  </defs>
-  <circle cx="100" cy="100" r="90" fill="url(#g)"/>
-  <path d="M100 38l18 44 44 18-44 18-18 44-18-44-44-18 44-18z" fill="#0f172a" opacity="0.85"/>
-  <circle cx="152" cy="52" r="14" fill="#0f172a" opacity="0.75"/>
-</svg>`
-    },
-    {
-        id: 'heart',
-        label: 'Heart',
-        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="40" fill="#fb7185"/>
-  <path d="M100 148c-22-18-44-36-58-52-12-13-12-34 2-48 14-14 36-14 50 0l6 6 6-6c14-14 36-14 50 0 14 14 14 35 2 48-14 16-36 34-58 52z" fill="#fff"/>
-</svg>`
-    },
-    {
-        id: 'badge',
-        label: 'Badge',
-        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect width="200" height="200" rx="36" fill="#60a5fa"/>
-  <circle cx="100" cy="90" r="48" fill="#0f172a" opacity="0.8"/>
-  <path d="M70 160l30-22 30 22-10-36 28-20h-34l-14-32-14 32H52l28 20z" fill="#f8fafc"/>
-</svg>`
-    }
-];
+import { STICKER_CATEGORIES, GOOGLE_FONTS } from '@/lib/constants/decorateAssets';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-function svgToDataUrl(svg: string) {
-    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
 
 export default function DecorateEditor() {
     const router = useRouter();
     const { originalImage, setOriginalImage } = useAppStore();
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const previewRef = useRef<HTMLDivElement>(null);
 
     const [baseImg, setBaseImg] = useState<HTMLImageElement | null>(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
     const [downloadFormat, setDownloadFormat] = useState<'png' | 'webp' | 'jpg'>('png');
+    const [isDragging, setIsDragging] = useState<'text' | 'sticker' | null>(null);
 
     const [textSettings, setTextSettings] = useState({
         enabled: true,
@@ -67,13 +30,14 @@ export default function DecorateEditor() {
         color: '#ffffff',
         opacity: 0.9,
         weight: 800,
+        font: 'Roboto',
         positionX: 50,
         positionY: 12
     });
 
     const [stickerSettings, setStickerSettings] = useState({
         enabled: true,
-        stickerId: 'sparkle',
+        emoji: '✨',
         size: 18,
         opacity: 0.95,
         positionX: 82,
@@ -87,12 +51,15 @@ export default function DecorateEditor() {
         color: '#0f172a'
     });
 
-    const stickerUrl = useMemo(() => {
-        const sticker = STICKERS.find((item) => item.id === stickerSettings.stickerId);
-        return sticker ? svgToDataUrl(sticker.svg) : null;
-    }, [stickerSettings.stickerId]);
+    const [selectedCategory, setSelectedCategory] = useState<keyof typeof STICKER_CATEGORIES>('emoji');
 
-    const [stickerImg, setStickerImg] = useState<HTMLImageElement | null>(null);
+    // Load Google Fonts
+    useEffect(() => {
+        const link = document.createElement('link');
+        link.href = `https://fonts.googleapis.com/css2?${GOOGLE_FONTS.map(font => `family=${font.replace(/ /g, '+')}`).join('&')}&display=swap`;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+    }, []);
 
     useEffect(() => {
         if (!originalImage) {
@@ -112,16 +79,6 @@ export default function DecorateEditor() {
     }, [originalImage, router]);
 
     useEffect(() => {
-        if (!stickerUrl) {
-            setStickerImg(null);
-            return;
-        }
-        const img = new Image();
-        img.src = stickerUrl;
-        img.onload = () => setStickerImg(img);
-    }, [stickerUrl]);
-
-    useEffect(() => {
         if (!baseImg || !canvasRef.current) return;
         const canvas = canvasRef.current;
         canvas.width = canvasSize.width;
@@ -129,11 +86,11 @@ export default function DecorateEditor() {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // requestAnimationFrame을 사용하여 부드럽게 렌더링
         requestAnimationFrame(() => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(baseImg, 0, 0);
 
+            // Frame
             if (frameSettings.enabled && frameSettings.thickness > 0) {
                 const inset = frameSettings.thickness / 2;
                 const w = canvas.width - frameSettings.thickness;
@@ -152,53 +109,81 @@ export default function DecorateEditor() {
                 ctx.restore();
             }
 
-            if (stickerSettings.enabled && stickerImg) {
+            // Sticker (Emoji)
+            if (stickerSettings.enabled && stickerSettings.emoji) {
                 const minDim = Math.min(canvas.width, canvas.height);
                 const size = clamp(stickerSettings.size, 6, 50) / 100 * minDim;
-                const x = (stickerSettings.positionX / 100) * canvas.width - size / 2;
-                const y = (stickerSettings.positionY / 100) * canvas.height - size / 2;
+                const x = (stickerSettings.positionX / 100) * canvas.width;
+                const y = (stickerSettings.positionY / 100) * canvas.height;
                 ctx.save();
-                ctx.globalAlpha = clamp(stickerSettings.opacity, 0.1, 1);
-                ctx.drawImage(stickerImg, x, y, size, size);
+                ctx.globalAlpha = stickerSettings.opacity;
+                ctx.font = `${size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(stickerSettings.emoji, x, y);
                 ctx.restore();
             }
 
-            if (textSettings.enabled && textSettings.content.trim()) {
-                const fontSize = clamp(textSettings.size, 12, 180);
-                ctx.save();
-                ctx.font = `${textSettings.weight} ${fontSize}px "Inter", system-ui, sans-serif`;
-                ctx.fillStyle = textSettings.color;
-                ctx.globalAlpha = clamp(textSettings.opacity, 0.1, 1);
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
+            // Text
+            if (textSettings.enabled && textSettings.content) {
+                const fontSize = clamp(textSettings.size, 16, 200);
                 const x = (textSettings.positionX / 100) * canvas.width;
                 const y = (textSettings.positionY / 100) * canvas.height;
+                ctx.save();
+                ctx.globalAlpha = textSettings.opacity;
+                ctx.font = `${textSettings.weight} ${fontSize}px "${textSettings.font}", sans-serif`;
+                ctx.fillStyle = textSettings.color;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
                 ctx.fillText(textSettings.content, x, y);
                 ctx.restore();
             }
         });
-    }, [baseImg, canvasSize, frameSettings, stickerSettings, stickerImg, textSettings]);
+    }, [baseImg, canvasSize, textSettings, stickerSettings, frameSettings]);
+
+    const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!previewRef.current || !canvasRef.current) return;
+        const rect = previewRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Check if clicking near text or sticker
+        const textDist = Math.sqrt(Math.pow(x - textSettings.positionX, 2) + Math.pow(y - textSettings.positionY, 2));
+        const stickerDist = Math.sqrt(Math.pow(x - stickerSettings.positionX, 2) + Math.pow(y - stickerSettings.positionY, 2));
+
+        if (textSettings.enabled && textDist < 10) {
+            setIsDragging('text');
+        } else if (stickerSettings.enabled && stickerDist < 10) {
+            setIsDragging('sticker');
+        }
+    };
+
+    const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!isDragging || !previewRef.current) return;
+        const rect = previewRef.current.getBoundingClientRect();
+        const x = clamp(((e.clientX - rect.left) / rect.width) * 100, 0, 100);
+        const y = clamp(((e.clientY - rect.top) / rect.height) * 100, 0, 100);
+
+        if (isDragging === 'text') {
+            setTextSettings(prev => ({ ...prev, positionX: x, positionY: y }));
+        } else if (isDragging === 'sticker') {
+            setStickerSettings(prev => ({ ...prev, positionX: x, positionY: y }));
+        }
+    };
+
+    const handleCanvasMouseUp = () => {
+        setIsDragging(null);
+    };
 
     const handleDownload = async () => {
-        if (!canvasRef.current || !originalImage) return;
         const canvas = canvasRef.current;
-        const filename = buildFilename(originalImage.name, 'decorate', downloadFormat);
+        if (!canvas || !originalImage) return;
+        const filename = buildFilename(originalImage.name, 'decorated', downloadFormat);
         const blob = await new Promise<Blob | null>((resolve) => {
-            if (downloadFormat === 'jpg') {
-                const temp = document.createElement('canvas');
-                temp.width = canvas.width;
-                temp.height = canvas.height;
-                const tctx = temp.getContext('2d');
-                if (!tctx) {
-                    resolve(null);
-                    return;
-                }
-                tctx.fillStyle = '#ffffff';
-                tctx.fillRect(0, 0, temp.width, temp.height);
-                tctx.drawImage(canvas, 0, 0);
-                temp.toBlob((b) => resolve(b), 'image/jpeg', 0.95);
-                return;
-            }
             canvas.toBlob((b) => resolve(b), `image/${downloadFormat}`);
         });
         if (!blob) return;
@@ -207,20 +192,57 @@ export default function DecorateEditor() {
 
     if (!baseImg) return null;
 
+    const allStickers = STICKER_CATEGORIES[selectedCategory];
+
     return (
         <div className="flex h-[calc(100vh-64px)] bg-background">
             <div className="flex-grow flex items-center justify-center p-10 overflow-auto">
                 <div className="relative w-full max-w-3xl flex items-center justify-center">
                     <div className="rounded-3xl border border-card-border bg-black/5 p-6 shadow-2xl">
-                        <canvas
-                            ref={canvasRef}
-                            className="max-h-[70vh] w-auto rounded-2xl shadow-xl"
-                        />
+                        <div
+                            ref={previewRef}
+                            onMouseDown={handleCanvasMouseDown}
+                            onMouseMove={handleCanvasMouseMove}
+                            onMouseUp={handleCanvasMouseUp}
+                            onMouseLeave={handleCanvasMouseUp}
+                            className="relative cursor-move"
+                        >
+                            <canvas
+                                ref={canvasRef}
+                                className="max-h-[70vh] w-auto rounded-2xl shadow-xl"
+                            />
+                            {/* Text Indicator */}
+                            {textSettings.enabled && (
+                                <div
+                                    className="absolute w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg pointer-events-none"
+                                    style={{
+                                        left: `${textSettings.positionX}%`,
+                                        top: `${textSettings.positionY}%`,
+                                        transform: 'translate(-50%, -50%)'
+                                    }}
+                                />
+                            )}
+                            {/* Sticker Indicator */}
+                            {stickerSettings.enabled && (
+                                <div
+                                    className="absolute w-4 h-4 bg-purple-500 rounded-full border-2 border-white shadow-lg pointer-events-none"
+                                    style={{
+                                        left: `${stickerSettings.positionX}%`,
+                                        top: `${stickerSettings.positionY}%`,
+                                        transform: 'translate(-50%, -50%)'
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <p className="text-xs text-text-tertiary text-center mt-4 flex items-center justify-center gap-2">
+                            <Move className="h-3 w-3" />
+                            캔버스를 클릭하여 텍스트/스티커를 드래그하세요
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <div className="w-[420px] border-l border-card-border bg-card-bg backdrop-blur-xl p-8 flex flex-col gap-8 overflow-y-auto">
+            <div className="w-[420px] border-l border-card-border bg-card-bg backdrop-blur-xl p-8 flex flex-col gap-6 overflow-y-auto">
                 <div className="flex items-center justify-between">
                     <button
                         onClick={() => {
@@ -237,31 +259,60 @@ export default function DecorateEditor() {
                     </div>
                 </div>
 
+                {/* Text Section */}
                 <section className="space-y-4">
-                    <div className="flex items-center gap-2 text-text-primary">
-                        <Type className="h-4 w-4" />
-                        <h3 className="text-sm font-black uppercase tracking-widest">텍스트</h3>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-text-primary">
+                            <Type className="h-4 w-4" />
+                            <h3 className="text-sm font-black uppercase tracking-widest">텍스트</h3>
+                        </div>
+                        <button
+                            onClick={() => setTextSettings({ ...textSettings, enabled: !textSettings.enabled })}
+                            className={cn(
+                                'px-3 py-1 rounded-lg text-xs font-bold transition-all',
+                                textSettings.enabled ? 'bg-accent text-white' : 'bg-background text-text-tertiary'
+                            )}
+                        >
+                            {textSettings.enabled ? 'ON' : 'OFF'}
+                        </button>
                     </div>
-                    <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">내용</label>
+                    
                     <input
                         value={textSettings.content}
                         onChange={(e) => setTextSettings({ ...textSettings, content: e.target.value })}
                         className="w-full rounded-2xl bg-background border border-card-border px-4 py-3 text-sm text-text-primary"
+                        placeholder="텍스트 입력"
                     />
+
+                    <div>
+                        <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block mb-2">폰트</label>
+                        <select
+                            value={textSettings.font}
+                            onChange={(e) => setTextSettings({ ...textSettings, font: e.target.value })}
+                            className="w-full rounded-xl bg-background border border-card-border px-3 py-2 text-sm text-text-primary"
+                            style={{ fontFamily: textSettings.font }}
+                        >
+                            {GOOGLE_FONTS.map(font => (
+                                <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">크기</label>
+                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block mb-2">크기</label>
                             <input
                                 type="range"
                                 min="16"
-                                max="160"
+                                max="200"
                                 value={textSettings.size}
                                 onChange={(e) => setTextSettings({ ...textSettings, size: Number(e.target.value) })}
                                 className="w-full accent-accent"
                             />
+                            <span className="text-xs text-text-tertiary">{textSettings.size}px</span>
                         </div>
                         <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">투명도</label>
+                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block mb-2">투명도</label>
                             <input
                                 type="range"
                                 min="10"
@@ -270,74 +321,73 @@ export default function DecorateEditor() {
                                 onChange={(e) => setTextSettings({ ...textSettings, opacity: Number(e.target.value) / 100 })}
                                 className="w-full accent-accent"
                             />
+                            <span className="text-xs text-text-tertiary">{Math.round(textSettings.opacity * 100)}%</span>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">가로 위치</label>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={textSettings.positionX}
-                                onChange={(e) => setTextSettings({ ...textSettings, positionX: Number(e.target.value) })}
-                                className="w-full accent-accent"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">세로 위치</label>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={textSettings.positionY}
-                                onChange={(e) => setTextSettings({ ...textSettings, positionY: Number(e.target.value) })}
-                                className="w-full accent-accent"
-                            />
-                        </div>
-                    </div>
+
                     <div className="flex items-center gap-4">
                         <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">색상</label>
                         <input
                             type="color"
                             value={textSettings.color}
                             onChange={(e) => setTextSettings({ ...textSettings, color: e.target.value })}
-                            className="h-8 w-16 rounded-lg border border-card-border bg-background"
+                            className="w-16 h-10 rounded-lg cursor-pointer"
                         />
-                        <button
-                            onClick={() => setTextSettings({ ...textSettings, enabled: !textSettings.enabled })}
-                            className={cn(
-                                "ml-auto text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border",
-                                textSettings.enabled ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-card-border text-text-tertiary"
-                            )}
-                        >
-                            {textSettings.enabled ? 'ON' : 'OFF'}
-                        </button>
                     </div>
                 </section>
 
+                {/* Sticker Section */}
                 <section className="space-y-4">
-                    <div className="flex items-center gap-2 text-text-primary">
-                        <Sparkles className="h-4 w-4" />
-                        <h3 className="text-sm font-black uppercase tracking-widest">스티커</h3>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-text-primary">
+                            <Sparkles className="h-4 w-4" />
+                            <h3 className="text-sm font-black uppercase tracking-widest">스티커</h3>
+                        </div>
+                        <button
+                            onClick={() => setStickerSettings({ ...stickerSettings, enabled: !stickerSettings.enabled })}
+                            className={cn(
+                                'px-3 py-1 rounded-lg text-xs font-bold transition-all',
+                                stickerSettings.enabled ? 'bg-accent text-white' : 'bg-background text-text-tertiary'
+                            )}
+                        >
+                            {stickerSettings.enabled ? 'ON' : 'OFF'}
+                        </button>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                        {STICKERS.map((item) => (
+
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {(Object.keys(STICKER_CATEGORIES) as Array<keyof typeof STICKER_CATEGORIES>).map(cat => (
                             <button
-                                key={item.id}
-                                onClick={() => setStickerSettings({ ...stickerSettings, stickerId: item.id, enabled: true })}
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
                                 className={cn(
-                                    "rounded-2xl border border-card-border p-3 text-[10px] font-bold uppercase tracking-widest transition-all",
-                                    stickerSettings.stickerId === item.id ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/40" : "bg-background text-text-secondary"
+                                    'px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all',
+                                    selectedCategory === cat ? 'bg-accent text-white' : 'bg-background text-text-tertiary hover:bg-white/5'
                                 )}
                             >
-                                {item.label}
+                                {cat}
                             </button>
                         ))}
                     </div>
+
+                    <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto p-2 bg-background rounded-xl">
+                        {allStickers.map(sticker => (
+                            <button
+                                key={sticker.id}
+                                onClick={() => setStickerSettings({ ...stickerSettings, emoji: sticker.emoji })}
+                                className={cn(
+                                    'p-3 text-2xl rounded-lg transition-all hover:bg-white/10',
+                                    stickerSettings.emoji === sticker.emoji ? 'bg-accent/20 ring-2 ring-accent' : 'bg-white/5'
+                                )}
+                                title={sticker.label}
+                            >
+                                {sticker.emoji}
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">크기</label>
+                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block mb-2">크기</label>
                             <input
                                 type="range"
                                 min="6"
@@ -346,9 +396,10 @@ export default function DecorateEditor() {
                                 onChange={(e) => setStickerSettings({ ...stickerSettings, size: Number(e.target.value) })}
                                 className="w-full accent-accent"
                             />
+                            <span className="text-xs text-text-tertiary">{stickerSettings.size}%</span>
                         </div>
                         <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">투명도</label>
+                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block mb-2">투명도</label>
                             <input
                                 type="range"
                                 min="10"
@@ -357,104 +408,78 @@ export default function DecorateEditor() {
                                 onChange={(e) => setStickerSettings({ ...stickerSettings, opacity: Number(e.target.value) / 100 })}
                                 className="w-full accent-accent"
                             />
+                            <span className="text-xs text-text-tertiary">{Math.round(stickerSettings.opacity * 100)}%</span>
                         </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">가로 위치</label>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={stickerSettings.positionX}
-                                onChange={(e) => setStickerSettings({ ...stickerSettings, positionX: Number(e.target.value) })}
-                                className="w-full accent-accent"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">세로 위치</label>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={stickerSettings.positionY}
-                                onChange={(e) => setStickerSettings({ ...stickerSettings, positionY: Number(e.target.value) })}
-                                className="w-full accent-accent"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">표시</label>
-                        <button
-                            onClick={() => setStickerSettings({ ...stickerSettings, enabled: !stickerSettings.enabled })}
-                            className={cn(
-                                "ml-auto text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border",
-                                stickerSettings.enabled ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-card-border text-text-tertiary"
-                            )}
-                        >
-                            {stickerSettings.enabled ? 'ON' : 'OFF'}
-                        </button>
                     </div>
                 </section>
 
+                {/* Frame Section */}
                 <section className="space-y-4">
-                    <div className="flex items-center gap-2 text-text-primary">
-                        <Square className="h-4 w-4" />
-                        <h3 className="text-sm font-black uppercase tracking-widest">프레임</h3>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-text-primary">
+                            <Square className="h-4 w-4" />
+                            <h3 className="text-sm font-black uppercase tracking-widest">프레임</h3>
+                        </div>
+                        <button
+                            onClick={() => setFrameSettings({ ...frameSettings, enabled: !frameSettings.enabled })}
+                            className={cn(
+                                'px-3 py-1 rounded-lg text-xs font-bold transition-all',
+                                frameSettings.enabled ? 'bg-accent text-white' : 'bg-background text-text-tertiary'
+                            )}
+                        >
+                            {frameSettings.enabled ? 'ON' : 'OFF'}
+                        </button>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">두께</label>
+                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block mb-2">두께</label>
                             <input
                                 type="range"
                                 min="0"
-                                max="40"
+                                max="50"
                                 value={frameSettings.thickness}
                                 onChange={(e) => setFrameSettings({ ...frameSettings, thickness: Number(e.target.value) })}
                                 className="w-full accent-accent"
                             />
+                            <span className="text-xs text-text-tertiary">{frameSettings.thickness}px</span>
                         </div>
                         <div>
-                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">둥글기</label>
+                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block mb-2">둥글기</label>
                             <input
                                 type="range"
                                 min="0"
-                                max="60"
+                                max="50"
                                 value={frameSettings.radius}
                                 onChange={(e) => setFrameSettings({ ...frameSettings, radius: Number(e.target.value) })}
                                 className="w-full accent-accent"
                             />
+                            <span className="text-xs text-text-tertiary">{frameSettings.radius}px</span>
                         </div>
                     </div>
+
                     <div className="flex items-center gap-4">
                         <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">색상</label>
                         <input
                             type="color"
                             value={frameSettings.color}
                             onChange={(e) => setFrameSettings({ ...frameSettings, color: e.target.value })}
-                            className="h-8 w-16 rounded-lg border border-card-border bg-background"
+                            className="w-16 h-10 rounded-lg cursor-pointer"
                         />
-                        <button
-                            onClick={() => setFrameSettings({ ...frameSettings, enabled: !frameSettings.enabled })}
-                            className={cn(
-                                "ml-auto text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border",
-                                frameSettings.enabled ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-card-border text-text-tertiary"
-                            )}
-                        >
-                            {frameSettings.enabled ? 'ON' : 'OFF'}
-                        </button>
                     </div>
                 </section>
 
-                <div className="mt-auto pt-6 border-t border-card-border">
-                    <div className="flex items-center gap-2 mb-3">
-                        {(['png', 'webp', 'jpg'] as const).map((fmt) => (
+                {/* Download Section */}
+                <section className="space-y-4 pt-4 border-t border-card-border">
+                    <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest block">다운로드 포맷</label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {(['png', 'webp', 'jpg'] as const).map(fmt => (
                             <button
                                 key={fmt}
                                 onClick={() => setDownloadFormat(fmt)}
                                 className={cn(
-                                    "px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all",
-                                    downloadFormat === fmt ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-card-border text-text-tertiary"
+                                    'px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all',
+                                    downloadFormat === fmt ? 'bg-accent text-white' : 'bg-background text-text-tertiary hover:bg-white/5'
                                 )}
                             >
                                 {fmt}
@@ -463,12 +488,12 @@ export default function DecorateEditor() {
                     </div>
                     <button
                         onClick={handleDownload}
-                        className="w-full py-5 rounded-[2rem] font-black text-lg transition-all flex items-center justify-center gap-3 shadow-2xl bg-emerald-500 hover:bg-emerald-600 text-white hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full bg-accent hover:bg-accent/90 text-white font-bold py-4 rounded-2xl text-sm shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-[0.98]"
                     >
-                        <Download className="h-6 w-6" />
-                        꾸미기 다운로드
+                        <Download className="h-5 w-5" />
+                        이미지 다운로드
                     </button>
-                </div>
+                </section>
             </div>
         </div>
     );
