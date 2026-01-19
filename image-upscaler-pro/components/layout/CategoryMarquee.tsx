@@ -9,10 +9,8 @@ import {
   Scissors, 
   RotateCw, 
   Palette, 
-  Grid3X3, 
   Square, 
-  Paintbrush, 
-  Wand2,
+  Eraser,
   Type,
   ChevronDown
 } from 'lucide-react';
@@ -30,11 +28,9 @@ const categories = [
   { icon: Scissors, label: '잘라내기', href: '/tools/crop', gradient: 'from-red-500 to-pink-500' },
   { icon: RotateCw, label: '회전', href: '/tools/rotate', gradient: 'from-blue-500 to-indigo-500' },
   { icon: Palette, label: '컬러 보정', href: '/tools/adjust', gradient: 'from-purple-500 to-violet-500' },
-  { icon: Grid3X3, label: '모자이크', href: '/tools/pixelate', gradient: 'from-orange-500 to-red-500' },
   { icon: Square, label: '프레임', href: '/tools/frame', gradient: 'from-green-500 to-teal-500' },
-  { icon: Paintbrush, label: '꾸미기', href: '/tools/decorate', gradient: 'from-purple-500 to-pink-500' },
   { icon: Type, label: '워터마크', href: '/tools/watermark-maker', gradient: 'from-indigo-500 to-blue-500' },
-  { icon: Wand2, label: 'AI 스튜디오', href: '/ai', gradient: 'from-blue-500 to-cyan-500' },
+  { icon: Eraser, label: 'AI 배경 제거', href: '/ai/background-remove', gradient: 'from-green-500 to-emerald-500' },
 ];
 
 export default function CategoryMarquee() {

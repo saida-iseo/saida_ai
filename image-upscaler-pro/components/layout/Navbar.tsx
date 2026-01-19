@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store/useAppStore';
-import { Heart, Sun, Moon, MoveDiagonal, Files, Droplets, Scissors, RotateCw, Palette, Grid3X3, Square, Paintbrush } from 'lucide-react';
+import { Heart, Sun, Moon, MoveDiagonal, Files, Droplets, Scissors, RotateCw, Palette, Square } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 const categories = [
@@ -13,9 +13,7 @@ const categories = [
     { icon: Scissors, label: '잘라내기', href: '/tools/crop' },
     { icon: RotateCw, label: '회전', href: '/tools/rotate' },
     { icon: Palette, label: '컬러 보정', href: '/tools/adjust' },
-    { icon: Grid3X3, label: '모자이크', href: '/tools/pixelate' },
     { icon: Square, label: '프레임', href: '/tools/frame' },
-    { icon: Paintbrush, label: '꾸미기', href: '/tools/decorate' },
 ];
 
 export default function Navbar() {

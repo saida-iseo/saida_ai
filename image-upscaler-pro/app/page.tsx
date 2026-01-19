@@ -12,10 +12,7 @@ import {
   Files,
   Droplets,
   Palette,
-  Grid3X3,
   Square,
-  Paintbrush,
-  Wand2,
   Eraser,
   Sparkle,
   QrCode
@@ -112,11 +109,12 @@ export default function Home() {
               />
 
               <ToolCard
-                title="모자이크"
-                description="픽셀 모자이크로 민감한 영역을 손쉽게 가립니다."
-                icon={Grid3X3}
-                gradient="bg-gradient-to-br from-red-600 via-orange-500 to-amber-500"
-                onClick={() => window.location.href = '/tools/pixelate'}
+                title="AI 배경 제거"
+                description="자동 배경 감지와 투명 처리로 피사체를 깔끔하게 분리합니다."
+                icon={Eraser}
+                gradient="bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500"
+                badge="AI"
+                onClick={() => window.location.href = '/ai/background-remove'}
               />
 
               <ToolCard
@@ -125,24 +123,6 @@ export default function Home() {
                 icon={Square}
                 gradient="bg-gradient-to-br from-teal-500 via-green-500 to-emerald-500"
                 onClick={() => window.location.href = '/tools/frame'}
-              />
-
-              <ToolCard
-                title="이미지 꾸미기"
-                description="텍스트, 스티커, 프레임으로 원하는 느낌을 완성하세요."
-                icon={Paintbrush}
-                gradient="bg-gradient-to-br from-fuchsia-500 via-pink-500 to-rose-500"
-                badge="New"
-                onClick={() => window.location.href = '/tools/decorate'}
-              />
-
-              <ToolCard
-                title="AI 스튜디오"
-                description="AI 배경 제거, 노이즈 제거, 색상 복원을 한 곳에서."
-                icon={Wand2}
-                gradient="bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-600"
-                badge="AI"
-                onClick={() => window.location.href = '/ai'}
               />
 
               <ToolCard

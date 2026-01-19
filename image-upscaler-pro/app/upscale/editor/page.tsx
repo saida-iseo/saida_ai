@@ -22,6 +22,22 @@ export default function EditorPage() {
     const [zoom, setZoom] = useState<1 | 2>(1);
     const autoStartedRef = useRef(false);
 
+    const updatePreview = useCallback(async (blob: Blob, factor: number) => {
+        if (!originalImage) return;
+        try {
+            const newWidth = Math.round((originalImage.width || 0) * factor);
+            const newHeight = Math.round((originalImage.height || 0) * factor);
+            const resized = await resizeImage(blob, newWidth, newHeight, 0.95);
+            const url = URL.createObjectURL(resized);
+            setPreviewUrl(prev => {
+                if (prev) URL.revokeObjectURL(prev);
+                return url;
+            });
+        } catch (error) {
+            console.error('미리보기 생성 실패:', error);
+        }
+    }, [originalImage]);
+
     useEffect(() => {
         if (!originalImage) {
             router.push('/upscale');
@@ -61,22 +77,6 @@ export default function EditorPage() {
             if (previewUrl) URL.revokeObjectURL(previewUrl);
         };
     }, [originalImage, router, processedImage, isProcessing, upscaleFactor, updatePreview, startUpscale]);
-
-    const updatePreview = useCallback(async (blob: Blob, factor: number) => {
-        if (!originalImage) return;
-        try {
-            const newWidth = Math.round((originalImage.width || 0) * factor);
-            const newHeight = Math.round((originalImage.height || 0) * factor);
-            const resized = await resizeImage(blob, newWidth, newHeight, 0.95);
-            const url = URL.createObjectURL(resized);
-            setPreviewUrl(prev => {
-                if (prev) URL.revokeObjectURL(prev);
-                return url;
-            });
-        } catch (error) {
-            console.error('미리보기 생성 실패:', error);
-        }
-    }, [originalImage]);
 
     useEffect(() => {
         if (originalBlob && !isProcessing) {

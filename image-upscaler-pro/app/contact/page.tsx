@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Mail, MessageSquare, Send, Phone, MapPin, Clock } from 'lucide-react';
+import { ArrowLeft, Mail, MessageSquare, Send, Clock } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ContactPage() {
@@ -190,30 +190,6 @@ export default function ContactPage() {
                             </div>
                         </div>
 
-                        <div className="bg-card-bg p-6 rounded-2xl border border-card-border shadow-sm">
-                            <div className="flex items-start gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500 text-white shadow-lg flex-shrink-0">
-                                    <Phone className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-text-primary mb-1">전화</h3>
-                                    <p className="text-text-secondary text-sm">02-1234-5678</p>
-                                    <p className="text-text-tertiary text-xs mt-1">평일 09:00 - 18:00</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-card-bg p-6 rounded-2xl border border-card-border shadow-sm">
-                            <div className="flex items-start gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-500 text-white shadow-lg flex-shrink-0">
-                                    <MapPin className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-text-primary mb-1">주소</h3>
-                                    <p className="text-text-secondary text-sm">서울특별시 강남구<br/>테헤란로 123</p>
-                                </div>
-                            </div>
-                        </div>
 
                         <div className="bg-card-bg p-6 rounded-2xl border border-card-border shadow-sm">
                             <div className="flex items-start gap-4">

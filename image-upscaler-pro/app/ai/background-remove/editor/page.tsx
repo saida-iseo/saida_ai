@@ -107,18 +107,83 @@ export default function BackgroundRemoveEditor() {
         const threshold = (tolerance / 100) * 180 + 10;
         const feather = (softness / 100) * 120;
 
-        for (let i = 0; i < output.data.length; i += 4) {
-            const dr = output.data[i] - key.r;
-            const dg = output.data[i + 1] - key.g;
-            const db = output.data[i + 2] - key.b;
-            const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-
-            if (dist <= threshold) {
-                output.data[i + 3] = 0;
-            } else if (feather > 0 && dist <= threshold + feather) {
-                const ratio = (dist - threshold) / feather;
-                output.data[i + 3] = clamp(Math.round(ratio * 255), 0, 255);
+        // 1단계: 초기 마스크 생성 (더 공격적인 임계값 사용)
+        const mask = new Uint8Array(width * height);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const idx = (y * width + x) * 4;
+                const dr = output.data[idx] - key.r;
+                const dg = output.data[idx + 1] - key.g;
+                const db = output.data[idx + 2] - key.b;
+                const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+                
+                // 가장자리 픽셀은 더 공격적으로 제거
+                const isEdge = x < 2 || x >= width - 2 || y < 2 || y >= height - 2;
+                const edgeThreshold = isEdge ? threshold * 1.3 : threshold;
+                
+                if (dist <= edgeThreshold) {
+                    mask[y * width + x] = 0; // 배경
+                } else if (feather > 0 && dist <= edgeThreshold + feather) {
+                    const ratio = (dist - edgeThreshold) / feather;
+                    mask[y * width + x] = Math.round(ratio * 255);
+                } else {
+                    mask[y * width + x] = 255; // 전경
+                }
             }
+        }
+
+        // 2단계: 가장자리 확산 - 배경 픽셀 주변의 유사한 색상도 제거
+        const iterations = 3;
+        for (let iter = 0; iter < iterations; iter++) {
+            const newMask = new Uint8Array(mask);
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    const idx = (y * width + x) * 4;
+                    const centerMask = mask[y * width + x];
+                    
+                    // 이미 배경이면 스킵
+                    if (centerMask === 0) continue;
+                    
+                    // 주변 픽셀 확인
+                    let backgroundNeighbors = 0;
+                    let similarNeighbors = 0;
+                    const neighbors = [
+                        { x: x - 1, y: y },
+                        { x: x + 1, y: y },
+                        { x: x, y: y - 1 },
+                        { x: x, y: y + 1 },
+                    ];
+                    
+                    neighbors.forEach(({ x: nx, y: ny }) => {
+                        const nIdx = (ny * width + nx) * 4;
+                        const nMask = mask[ny * width + nx];
+                        if (nMask === 0) {
+                            backgroundNeighbors++;
+                        } else if (nMask < 128) {
+                            similarNeighbors++;
+                        }
+                    });
+                    
+                    // 배경과 인접하고 색상이 유사하면 제거
+                    if (backgroundNeighbors > 0 || similarNeighbors >= 2) {
+                        const dr = output.data[idx] - key.r;
+                        const dg = output.data[idx + 1] - key.g;
+                        const db = output.data[idx + 2] - key.b;
+                        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+                        
+                        if (dist <= threshold * 1.5) {
+                            newMask[y * width + x] = Math.max(0, centerMask - 85);
+                        }
+                    }
+                }
+            }
+            mask.set(newMask);
+        }
+
+        // 3단계: 마스크를 알파 채널에 적용
+        for (let i = 0; i < output.data.length; i += 4) {
+            const pixelIdx = i / 4;
+            output.data[i + 3] = mask[pixelIdx];
         }
 
         const canvas = document.createElement('canvas');
