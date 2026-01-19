@@ -58,9 +58,15 @@ export default function EditorPage() {
                 });
                 
                 // 즉시 2x 스케일링 미리보기 생성 (완료 대기)
-                const defaultFactor = upscaleFactor || 2;
+                // store에 upscaleFactor가 없으면 2로 설정
+                if (!upscaleFactor || upscaleFactor !== 2) {
+                    const { setOptions } = useAppStore.getState();
+                    setOptions({ upscaleFactor: 2 });
+                }
+                
                 try {
-                    await updatePreview(blob, defaultFactor);
+                    // 2x 미리보기 즉시 생성 (항상 2x로)
+                    await updatePreview(blob, 2);
                 } catch (error) {
                     console.error('미리보기 생성 실패:', error);
                 }
