@@ -83,6 +83,8 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                     <button
                         onClick={() => {
+                            const { setProcessedImage } = useAppStore.getState();
+                            setProcessedImage(null); // 기존 처리 결과 초기화
                             setOptions({ upscaleFactor: 2 });
                             // 2x 선택 시 즉시 스케일링 시작
                             if (!isProcessing && upscaleFactor !== 2) {
@@ -101,6 +103,8 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                     </button>
                     <button
                         onClick={() => {
+                            const { setProcessedImage } = useAppStore.getState();
+                            setProcessedImage(null); // 기존 처리 결과 초기화
                             setOptions({ upscaleFactor: 4 });
                             // 4x 선택 시 즉시 스케일링 시작
                             if (!isProcessing && upscaleFactor !== 4) {
