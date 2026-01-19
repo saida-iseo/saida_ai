@@ -227,15 +227,21 @@ async function getOnnxSession(
         ort.env.wasm.wasmPaths = ORT_WASM_CDN;
         ort.env.wasm.numThreads = 1;
 
-        const providers = provider === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'];
-        const session = await ort.InferenceSession.create(model.url, { executionProviders: providers });
+        const providers = provider === 'webgpu' ? ['wasm'] : ['wasm'];
+        const sessionOptions: any = { 
+            executionProviders: providers,
+            graphOptimizationLevel: 'all'
+        };
+        
+        // WebGPU는 현재 비활성화 (안정성 문제)
+        const session = await ort.InferenceSession.create(model.url, sessionOptions);
         const inputName = session.inputNames[0];
         const outputName = session.outputNames[0];
         const meta = session.inputMetadata[inputName];
         const channelDim = meta?.dimensions?.[1];
         const channels = Number.isFinite(Number(channelDim)) ? Number(channelDim) : 3;
 
-        const record = { session, inputName, outputName, channels, modelId: model.id, provider, cacheKey };
+        const record = { session, inputName, outputName, channels, modelId: model.id, provider: 'wasm', cacheKey };
         sessionCache.set(cacheKey, record);
         return record;
     } catch (error) {

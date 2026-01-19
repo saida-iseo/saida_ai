@@ -8,10 +8,8 @@ import CompareSlider from '@/components/ui/CompareSlider';
 import DownloadGate from '@/components/shared/DownloadGate';
 import HelpPanel from '@/components/shared/HelpPanel';
 import Toast from '@/components/shared/Toast';
-import { Download, RotateCcw, Share2, Plus, ArrowLeft } from 'lucide-react';
-import { cn } from '@/lib/utils/cn';
+import { Download, ArrowLeft } from 'lucide-react';
 import { buildFilename } from '@/lib/utils/filename';
-import Link from 'next/link';
 
 export default function DownloadPage() {
     const router = useRouter();
@@ -149,31 +147,9 @@ export default function DownloadPage() {
                                 "추가 편집이 필요하면 아래 툴박스로 이어가세요."
                             ]}
                         />
-
-                        {/* Next Steps Tool Grid Placeholder */}
-                        <div className="bg-card-bg p-8 rounded-[2rem] border border-card-border shadow-sm">
-                            <h4 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-5 px-1">다음 단계 도구</h4>
-                            <div className="grid grid-cols-1 gap-3">
-                                <NextStepButton label="이미지 압축" color="bg-emerald-500" />
-                                <NextStepButton label="크기 조정" color="bg-blue-500" />
-                                <NextStepButton label="배경 제거" color="bg-purple-500" />
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    );
-}
-
-function NextStepButton({ label, color }: { label: string; color: string }) {
-    return (
-        <button className="flex items-center justify-between w-full p-4 rounded-2xl bg-background hover:bg-card-bg border border-card-border transition-all group">
-            <div className="flex items-center gap-4">
-                <div className={cn("w-1.5 h-1.5 rounded-full", color)} />
-                <span className="text-xs font-semibold text-text-secondary">{label}</span>
-            </div>
-            <Plus className="h-4 w-4 text-text-tertiary group-hover:text-text-primary transition-colors" />
-        </button>
     );
 }

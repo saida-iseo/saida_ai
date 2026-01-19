@@ -17,7 +17,9 @@ export default function RecentHistory({ variant = 'default' }: RecentHistoryProp
     const [items, setItems] = useState<RecentHistoryItem[]>([]);
 
     useEffect(() => {
-        setItems(getRecentHistory());
+        const allItems = getRecentHistory();
+        // 최대 5개만 표시
+        setItems(allItems.slice(0, 5));
     }, []);
 
     if (items.length === 0) return null;
@@ -73,10 +75,12 @@ export default function RecentHistory({ variant = 'default' }: RecentHistoryProp
                             <p className="text-xs font-bold text-text-primary truncate">{item.name}</p>
                             <p className="text-[10px] text-text-tertiary uppercase tracking-widest">{item.tool}</p>
                         </div>
-                        <div className="flex items-center gap-2 text-text-tertiary text-[10px] font-bold uppercase tracking-widest">
-                            다시 열기
-                            <ArrowRight className="h-4 w-4" />
-                        </div>
+                        {!isSidebar && (
+                            <div className="flex items-center gap-2 text-text-tertiary text-[10px] font-bold uppercase tracking-widest">
+                                다시 열기
+                                <ArrowRight className="h-4 w-4" />
+                            </div>
+                        )}
                     </button>
                 ))}
             </div>

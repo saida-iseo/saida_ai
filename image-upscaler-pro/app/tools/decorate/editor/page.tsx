@@ -58,7 +58,6 @@ export default function DecorateEditor() {
 
     const [baseImg, setBaseImg] = useState<HTMLImageElement | null>(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-    const [isRendering, setIsRendering] = useState(false);
     const [downloadFormat, setDownloadFormat] = useState<'png' | 'webp' | 'jpg'>('png');
 
     const [textSettings, setTextSettings] = useState({
@@ -130,9 +129,8 @@ export default function DecorateEditor() {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const render = async () => {
-            setIsRendering(true);
-            await new Promise((resolve) => setTimeout(resolve, 0));
+        // requestAnimationFrame을 사용하여 부드럽게 렌더링
+        requestAnimationFrame(() => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(baseImg, 0, 0);
 
@@ -177,9 +175,7 @@ export default function DecorateEditor() {
                 ctx.fillText(textSettings.content, x, y);
                 ctx.restore();
             }
-            setIsRendering(false);
-        };
-        render();
+        });
     }, [baseImg, canvasSize, frameSettings, stickerSettings, stickerImg, textSettings]);
 
     const handleDownload = async () => {
@@ -466,11 +462,7 @@ export default function DecorateEditor() {
                     </div>
                     <button
                         onClick={handleDownload}
-                        disabled={isRendering}
-                        className={cn(
-                            "w-full py-5 rounded-[2rem] font-black text-lg transition-all flex items-center justify-center gap-3 shadow-2xl",
-                            isRendering ? "bg-slate-800 text-slate-600 cursor-not-allowed" : "bg-emerald-500 hover:bg-emerald-600 text-white hover:scale-[1.02] active:scale-[0.98]"
-                        )}
+                        className="w-full py-5 rounded-[2rem] font-black text-lg transition-all flex items-center justify-center gap-3 shadow-2xl bg-emerald-500 hover:bg-emerald-600 text-white hover:scale-[1.02] active:scale-[0.98]"
                     >
                         <Download className="h-6 w-6" />
                         꾸미기 다운로드

@@ -28,8 +28,12 @@ export default function CompareSlider({
     const handleMove = (clientX: number) => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
-        const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-        const percent = (x / rect.width) * 100;
+        // 테두리 두께(4px * 2 = 8px)만큼 안쪽으로 제한
+        const borderWidth = 8;
+        const minX = borderWidth;
+        const maxX = rect.width - borderWidth;
+        const x = Math.max(minX, Math.min(clientX - rect.left, maxX));
+        const percent = ((x - minX) / (maxX - minX)) * 100;
         setSliderPos(percent);
     };
 
@@ -71,7 +75,7 @@ export default function CompareSlider({
                     alt="After"
                     className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none select-none"
                     style={{
-                        clipPath: `inset(0 ${sliderPos}% 0 0)`,
+                        clipPath: `inset(4px calc(8px + ${sliderPos}% * (100% - 16px) / 100) 4px 8px)`,
                         transform: `scale(${zoom})`,
                         transformOrigin: 'center center'
                     }}
@@ -98,7 +102,11 @@ export default function CompareSlider({
             {afterUrl && (
                 <div
                     className="absolute inset-y-0 w-1.5 bg-white shadow-[0_0_20px_rgba(0,0,0,0.4)] cursor-ew-resize z-20"
-                    style={{ left: `${sliderPos}%` }}
+                    style={{ 
+                        left: `calc(8px + ${sliderPos}% * (100% - 16px) / 100)`,
+                        top: '4px',
+                        bottom: '4px'
+                    }}
                     onPointerDown={onPointerDown}
                     onPointerMove={onPointerMove}
                     onPointerUp={onPointerUp}

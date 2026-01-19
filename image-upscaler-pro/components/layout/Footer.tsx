@@ -14,8 +14,8 @@ export default function Footer() {
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white shadow-lg shadow-accent/20 group-hover:scale-110 transition-transform">
                                 <Heart className="h-4 w-4 fill-current" />
                             </div>
-                            <span className="text-xl font-bold tracking-tight text-text-primary">
-                                Saida <span className="text-accent italic">image maker</span>
+                            <span className="text-xl font-bold tracking-tight text-text-primary whitespace-nowrap">
+                                Saida image maker
                             </span>
                         </Link>
                         <p className="text-text-tertiary text-sm font-medium max-w-xs leading-relaxed">
@@ -34,6 +34,7 @@ export default function Footer() {
                             <FooterLink href="/tools/blur" label="블러 및 흐림 처리" />
                             <FooterLink href="/tools/watermark-maker" label="워터마크 제작" />
                             <FooterLink href="/tools/decorate" label="이미지 꾸미기" />
+                            <FooterLink href="/tools/crop" label="이미지 꾸미기" />
                             <FooterLink href="/ai" label="AI 스튜디오" />
                         </ul>
                     </div>
@@ -42,10 +43,10 @@ export default function Footer() {
                     <div>
                         <h4 className="text-text-primary font-bold text-xs uppercase tracking-widest mb-6 border-b border-card-border pb-2 w-fit">정보</h4>
                         <ul className="space-y-4">
-                            <FooterLink href="#" label="Saida 소개" />
-                            <FooterLink href="#" label="AI 기술 가이드" />
-                            <FooterLink href="#" label="자주 묻는 질문" />
-                            <FooterLink href="#" label="문의하기" />
+                            <FooterLink href="/about" label="Saida 소개" />
+                            <FooterLink href="/guide" label="AI 기술 가이드" />
+                            <FooterLink href="/faq" label="자주 묻는 질문" />
+                            <FooterLink href="/contact" label="문의하기" />
                         </ul>
                     </div>
 
@@ -53,9 +54,9 @@ export default function Footer() {
                     <div>
                         <h4 className="text-text-primary font-bold text-xs uppercase tracking-widest mb-6 border-b border-card-border pb-2 w-fit">법적 고지</h4>
                         <ul className="space-y-4">
-                            <FooterLink href="#" label="이용약관" />
-                            <FooterLink href="#" label="개인정보처리방침" />
-                            <FooterLink href="#" label="데이터 보안 정책" />
+                            <FooterLink href="/legal/terms" label="이용약관" />
+                            <FooterLink href="/legal/privacy" label="개인정보처리방침" />
+                            <FooterLink href="/legal/security" label="데이터 보안 정책" />
                         </ul>
                     </div>
                 </div>

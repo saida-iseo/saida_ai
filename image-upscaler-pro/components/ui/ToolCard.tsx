@@ -19,7 +19,7 @@ export function ToolCard({ title, description, icon: Icon, gradient, badge, onCl
         <button
             onClick={onClick}
             className={cn(
-                "group relative flex flex-col p-6 text-left rounded-[1.5rem] overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl",
+                "group relative flex flex-col p-6 text-left rounded-[1.5rem] overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl h-[180px]",
                 gradient,
                 className
             )}
@@ -55,7 +55,7 @@ export function ToolCardWide({ title, description, icon: Icon, gradient, badge, 
         <button
             onClick={onClick}
             className={cn(
-                "group relative flex flex-col md:flex-row items-center gap-6 p-7 text-left rounded-[2rem] overflow-hidden transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] shadow-xl hover:shadow-2xl sm:col-span-2",
+                "group relative flex flex-col md:flex-row items-center gap-6 p-7 text-left rounded-[2rem] overflow-hidden transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] shadow-xl hover:shadow-2xl sm:col-span-2 h-[180px]",
                 gradient,
                 className
             )}
