@@ -57,21 +57,13 @@ export default function EditorPage() {
                     return url;
                 });
                 
-                // 즉시 2x 스케일링 미리보기 생성 (완료 대기)
                 // store에 upscaleFactor가 없으면 2로 설정
                 if (!upscaleFactor || upscaleFactor !== 2) {
                     const { setOptions } = useAppStore.getState();
                     setOptions({ upscaleFactor: 2 });
                 }
                 
-                try {
-                    // 2x 미리보기 즉시 생성 (항상 2x로)
-                    await updatePreview(blob, 2);
-                } catch (error) {
-                    console.error('미리보기 생성 실패:', error);
-                }
-                
-                // 미리보기 생성 완료 후 즉시 자동 스케일링 시작 (지연 없이)
+                // 미리보기 생성하지 않고 바로 2x 스케일링 시작
                 if (!processedImage && !isProcessing && !autoStartedRef.current) {
                     autoStartedRef.current = true;
                     // 다음 틱에서 실행하여 상태 업데이트가 완료된 후 시작
@@ -254,7 +246,7 @@ export default function EditorPage() {
                                 </div>
                             </div>
                             <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
-                                {previewUrl ? (
+                                {previewUrl && !isProcessing ? (
                                     <div className="w-full h-[560px] flex items-center justify-center bg-gray-950">
                                         <img
                                             src={previewUrl}
@@ -266,17 +258,10 @@ export default function EditorPage() {
                                     </div>
                                 ) : (
                                     <div className="w-full h-[560px] flex items-center justify-center bg-gray-950">
-                                        {isProcessing ? (
-                                            <div className="text-center">
-                                                <Loader2 className="h-12 w-12 text-emerald-500 animate-spin mx-auto mb-4" />
-                                                <p className="text-white text-lg font-bold">{progressStatus || '처리 중...'}</p>
-                                            </div>
-                                        ) : (
-                                            <div className="text-center">
-                                                <Loader2 className="h-12 w-12 text-emerald-500 animate-spin mx-auto mb-4" />
-                                                <p className="text-white text-lg font-bold">미리보기 생성 중...</p>
-                                            </div>
-                                        )}
+                                        <div className="text-center">
+                                            <Loader2 className="h-12 w-12 text-emerald-500 animate-spin mx-auto mb-4" />
+                                            <p className="text-white text-lg font-bold">{progressStatus || '로딩 중...'}</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -82,24 +82,38 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                 <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-3 block">크기 증가</label>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                     <button
-                        onClick={() => setOptions({ upscaleFactor: 2 })}
+                        onClick={() => {
+                            setOptions({ upscaleFactor: 2 });
+                            // 2x 선택 시 즉시 스케일링 시작
+                            if (!isProcessing && upscaleFactor !== 2) {
+                                setTimeout(() => onUpscale(), 100);
+                            }
+                        }}
                         className={cn(
                             "py-3 rounded-xl font-bold text-sm transition-all border-2",
                             upscaleFactor === 2
                                 ? "border-blue-500 bg-blue-500 text-white shadow-lg"
                                 : "border-card-border bg-background text-text-secondary hover:text-text-primary"
                         )}
+                        disabled={isProcessing}
                     >
                         2x
                     </button>
                     <button
-                        onClick={() => setOptions({ upscaleFactor: 4 })}
+                        onClick={() => {
+                            setOptions({ upscaleFactor: 4 });
+                            // 4x 선택 시 즉시 스케일링 시작
+                            if (!isProcessing && upscaleFactor !== 4) {
+                                setTimeout(() => onUpscale(), 100);
+                            }
+                        }}
                         className={cn(
                             "py-3 rounded-xl font-bold text-sm transition-all border-2",
                             upscaleFactor === 4
                                 ? "border-blue-500 bg-blue-500 text-white shadow-lg"
                                 : "border-card-border bg-background text-text-secondary hover:text-text-primary"
                         )}
+                        disabled={isProcessing}
                     >
                         4x
                     </button>
