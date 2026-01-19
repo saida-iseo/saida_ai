@@ -32,9 +32,9 @@ export default function EditorPage() {
             if (blob) {
                 setOriginalBlob(blob);
                 setImgUrl(URL.createObjectURL(blob));
-                // 기본 2x로 미리보기 생성
+                // 즉시 2x 스케일링 미리보기 생성
                 const defaultFactor = upscaleFactor || 2;
-                updatePreview(blob, defaultFactor);
+                await updatePreview(blob, defaultFactor);
             }
         };
 
@@ -267,15 +267,15 @@ export default function EditorPage() {
                         </div>
                     </div>
 
-                    {/* Download Button */}
-                    {previewUrl && (
+                    {/* Download Button - Only show when processed */}
+                    {processedImage && previewUrl && (
                         <div className="flex flex-col items-center gap-4">
                             <button
                                 onClick={handleDownload}
                                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-black px-8 py-4 rounded-2xl text-lg transition-all shadow-xl flex items-center gap-3 active:scale-95"
                             >
                                 <Download className="h-5 w-5" />
-                                {processedImage ? 'AI 처리된 이미지 다운로드' : '미리보기 이미지 다운로드'}
+                                AI 처리된 이미지 다운로드
                             </button>
                         </div>
                     )}

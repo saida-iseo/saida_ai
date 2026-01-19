@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { cn } from '@/lib/utils/cn';
-import { Info, Loader2, Sparkles, Image as ImageIcon, Smile, Type, Zap } from 'lucide-react';
+import { Info, Loader2, Sparkles, Zap } from 'lucide-react';
 
 export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () => void; onCancel: () => void }) {
     const {
@@ -48,33 +48,6 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                 </div>
             </div>
 
-            {/* Mode Selector */}
-            <div className="mb-8">
-                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-3 block">보정 모드 선택</label>
-                <div className="grid grid-cols-1 gap-2">
-                    <ModeBtn
-                        active={upscaleMode === 'photo'}
-                        onClick={() => setOptions({ upscaleMode: 'photo' })}
-                        icon={<ImageIcon className="h-4 w-4" />}
-                        label="사진"
-                        desc="인물, 풍경 등 자연스러운 결과"
-                    />
-                    <ModeBtn
-                        active={upscaleMode === 'anime'}
-                        onClick={() => setOptions({ upscaleMode: 'anime' })}
-                        icon={<Smile className="h-4 w-4" />}
-                        label="일러스트"
-                        desc="애니메이션, 그림 노이즈 제거"
-                    />
-                    <ModeBtn
-                        active={upscaleMode === 'text'}
-                        onClick={() => setOptions({ upscaleMode: 'text' })}
-                        icon={<Type className="h-4 w-4" />}
-                        label="텍스트"
-                        desc="문서 및 글자를 선명하게 복원"
-                    />
-                </div>
-            </div>
 
             {/* Info Box */}
             <div className="mb-6 p-4 rounded-2xl bg-accent/5 border border-accent/10">
@@ -324,30 +297,6 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
     );
 }
 
-function ModeBtn({ active, onClick, icon, label, desc }: any) {
-    return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "flex items-center gap-4 p-4 rounded-[1.5rem] border transition-all text-left",
-                active
-                    ? "border-accent bg-accent/5 text-text-primary"
-                    : "border-card-border bg-background text-text-secondary hover:border-text-tertiary hover:text-text-primary"
-            )}
-        >
-            <div className={cn(
-                "h-9 w-9 rounded-xl flex items-center justify-center transition-all shadow-sm",
-                active ? "bg-accent text-white" : "bg-card-bg text-text-tertiary"
-            )}>
-                {icon}
-            </div>
-            <div>
-                <p className="text-[13px] font-bold tracking-tight">{label}</p>
-                <p className="text-[10px] font-medium opacity-60 leading-tight">{desc}</p>
-            </div>
-        </button>
-    )
-}
 
 function ToggleBtn({ label, active, onClick, disabled }: any) {
     return (
