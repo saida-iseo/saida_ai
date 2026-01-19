@@ -17,7 +17,8 @@ import {
   Paintbrush,
   Wand2,
   Eraser,
-  Sparkle
+  Sparkle,
+  QrCode
 } from 'lucide-react';
 import SplashScreen from '@/components/layout/SplashScreen';
 import { ToolCard, ToolCardWide } from '@/components/ui/ToolCard';
@@ -142,6 +143,15 @@ export default function Home() {
                 gradient="bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-600"
                 badge="AI"
                 onClick={() => window.location.href = '/ai'}
+              />
+
+              <ToolCard
+                title="QR 코드 스캐너"
+                description="이미지에서 QR 코드를 읽고 정보를 추출합니다."
+                icon={QrCode}
+                gradient="bg-gradient-to-br from-purple-600 via-indigo-500 to-blue-500"
+                badge="New"
+                onClick={() => window.location.href = '/tools/qr-scanner'}
               />
             </div>
           </div>

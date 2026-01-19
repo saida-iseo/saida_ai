@@ -141,11 +141,12 @@ export default function DecorateEditor() {
                 ctx.save();
                 ctx.strokeStyle = frameSettings.color;
                 ctx.lineWidth = frameSettings.thickness;
-                if ('roundRect' in ctx) {
+                if ('roundRect' in ctx && typeof ctx.roundRect === 'function') {
                     ctx.beginPath();
                     ctx.roundRect(inset, inset, w, h, frameSettings.radius);
                     ctx.stroke();
                 } else {
+                    ctx.beginPath();
                     ctx.strokeRect(inset, inset, w, h);
                 }
                 ctx.restore();

@@ -71,7 +71,7 @@ export default function CompressEditor() {
     }, [quality, originalBlob, useTargetSize, targetSizeKB, updateCompressedPreview]);
 
     const handleDownload = async () => {
-        if (!originalBlob || !compressedUrl) return;
+        if (!originalBlob || !compressedUrl || !originalImage) return;
         try {
             let compressed = await compressImage(originalBlob, quality, useTargetSize ? targetSizeKB : null);
             

@@ -163,7 +163,7 @@ export default function OptionsPanel({ onUpscale, onCancel }: { onUpscale: () =>
                         4x
                     </button>
                 </div>
-                {originalImage && (
+                {originalImage && originalImage.width && originalImage.height && (
                     <div className="text-[11px] font-medium text-text-secondary text-center">
                         {originalImage.width} × {originalImage.height} px → {originalImage.width * upscaleFactor} × {originalImage.height * upscaleFactor} px
                     </div>

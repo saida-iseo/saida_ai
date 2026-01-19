@@ -21,10 +21,10 @@ interface BlurRegion {
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const getBlurPx = (intensity: number, widthPx: number, heightPx: number) => {
-    const minBlur = 2;
-    const maxBlur = Math.max(minBlur, Math.min(widthPx, heightPx) / 5);
+    const minBlur = 5;
+    const maxBlur = Math.max(minBlur, Math.min(widthPx, heightPx) / 3);
     const t = clamp(intensity / 100, 0, 1);
-    const curved = Math.pow(t, 1.15);
+    const curved = Math.pow(t, 1.5);
     return Math.round(minBlur + (maxBlur - minBlur) * curved);
 };
 
@@ -92,10 +92,11 @@ export default function BlurEditor() {
         r: number
     ) => {
         const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-        if ('roundRect' in ctx) {
+        if ('roundRect' in ctx && typeof ctx.roundRect === 'function') {
             ctx.roundRect(x, y, w, h, radius);
             return;
         }
+        ctx.beginPath();
         ctx.moveTo(x + radius, y);
         ctx.arcTo(x + w, y, x + w, y + h, radius);
         ctx.arcTo(x + w, y + h, x, y + h, radius);
@@ -141,7 +142,7 @@ export default function BlurEditor() {
             const radius = (r.borderRadius / 100) * Math.min(rw, rh) / 2;
             drawRoundedRectPath(ctx, rx, ry, rw, rh, radius);
             ctx.clip();
-            ctx.globalAlpha = 0.35 + 0.65 * strength;
+            ctx.globalAlpha = 1.0;
             ctx.drawImage(tempCanvas, rx, ry);
             ctx.restore();
         }

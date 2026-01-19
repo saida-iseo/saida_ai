@@ -89,7 +89,7 @@ export default function ResizeEditor() {
     };
 
     const handleDownload = async () => {
-        if (!originalBlob || dims.w <= 0 || dims.h <= 0) return;
+        if (!originalBlob || !originalImage || dims.w <= 0 || dims.h <= 0) return;
         try {
             const resized = await resizeImage(originalBlob, dims.w, dims.h, 0.95);
             const filename = buildFilename(originalImage.name, `resize${dims.w}x${dims.h}`, originalImage.type.split('/')[1] || 'png');

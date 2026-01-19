@@ -51,9 +51,9 @@ export default function RotatePage() {
     };
 
     return (
-        <div className="min-h-[calc(100vh-64px)] bg-background flex flex-col items-center justify-center p-6">
-            <div className="w-full max-w-4xl text-center mb-12">
-                <h1 className="text-5xl font-black text-text-primary tracking-tighter mb-4">이미지 회전</h1>
+        <div className="min-h-[calc(100vh-64px)] bg-background flex flex-col items-center justify-center px-4 py-8">
+            <div className="w-full max-w-3xl text-center mb-8">
+                <h1 className="text-4xl font-black text-text-primary tracking-tighter mb-3">이미지 회전</h1>
                 <p className="text-text-secondary font-bold">이미지를 90도씩 회전하거나 180도 반전시키세요.</p>
             </div>
             <UnifiedUploadZone onUpload={handleUpload} />

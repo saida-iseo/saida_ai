@@ -113,7 +113,7 @@ export default function EditorPage() {
                 const filename = buildFilename(processedImage.name, `upscale${scaleLabel}`, downloadFormat);
                 downloadImage(finalBlob, filename);
             }
-        } else if (originalBlob && previewUrl) {
+        } else if (originalBlob && previewUrl && originalImage) {
             // 미리보기 이미지를 다운로드
             try {
                 const newWidth = Math.round((originalImage.width || 0) * scaleFactor);

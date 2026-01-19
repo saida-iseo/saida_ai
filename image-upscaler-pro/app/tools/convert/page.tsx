@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import UnifiedUploadZone from '@/components/shared/UnifiedUploadZone';
-import RecentHistory from '@/components/shared/RecentHistory';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { imageDb } from '@/lib/db/imageDb';
 import { useRouter } from 'next/navigation';
@@ -53,31 +52,12 @@ export default function ConvertPage() {
     };
 
     return (
-        <div className="min-h-[calc(100vh-64px)] bg-background">
-            <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-                <div className="flex gap-8">
-                    {/* Left Sidebar - Recent History */}
-                    <div className="hidden lg:block w-80 flex-shrink-0">
-                        <div className="sticky top-20">
-                            <RecentHistory variant="sidebar" />
-                        </div>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className="w-full max-w-3xl text-center mb-8">
-                            <h1 className="text-4xl font-black text-text-primary tracking-tighter mb-3">이미지 변환</h1>
-                            <p className="text-text-secondary font-bold">이미지 포맷을 PNG, JPG, WebP로 쉽게 변경하세요.</p>
-                        </div>
-                        <UnifiedUploadZone onUpload={handleUpload} />
-                    </div>
-                </div>
-
-                {/* Recent History for Mobile/Tablet */}
-                <div className="lg:hidden mt-12">
-                    <RecentHistory variant="default" />
-                </div>
+        <div className="min-h-[calc(100vh-64px)] bg-background flex flex-col items-center justify-center px-4 py-8">
+            <div className="w-full max-w-3xl text-center mb-8">
+                <h1 className="text-4xl font-black text-text-primary tracking-tighter mb-3">이미지 변환</h1>
+                <p className="text-text-secondary font-bold">이미지 포맷을 PNG, JPG, WebP로 쉽게 변경하세요.</p>
             </div>
+            <UnifiedUploadZone onUpload={handleUpload} />
         </div>
     );
 }
