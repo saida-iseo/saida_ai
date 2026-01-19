@@ -22,6 +22,7 @@ import { ToolCard, ToolCardWide } from '@/components/ui/ToolCard';
 import { useAppStore } from '@/lib/store/useAppStore';
 import RecentHistory from '@/components/shared/RecentHistory';
 import ToolsMarquee from '@/components/shared/ToolsMarquee';
+import AdSenseBanner from '@/components/ads/AdSenseBanner';
 
 export default function Home() {
   const { isPremium } = useAppStore();
@@ -33,7 +34,17 @@ export default function Home() {
       {/* Main Container */}
       <div className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
         <div className="flex gap-8">
-          {/* Main Content - Left Side */}
+          {/* Left Sidebar - AdSense Banner */}
+          <div className="hidden lg:block w-80 flex-shrink-0">
+            <div className="sticky top-20">
+              <AdSenseBanner 
+                format="vertical"
+                style={{ display: 'block', width: '160px', height: '600px', margin: '0 auto' }}
+              />
+            </div>
+          </div>
+
+          {/* Main Content - Center */}
           <div className="flex-1">
             <div className="mb-8 px-2 animate-in fade-in slide-in-from-top-4 duration-700">
               <h2 className="text-xl font-bold text-text-primary tracking-tight mb-1.5 uppercase tracking-widest">Quick Actions</h2>
