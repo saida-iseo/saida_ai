@@ -96,21 +96,21 @@ export default function DownloadPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* BEFORE */}
                             <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
-                                <div className="absolute top-6 left-6 z-10">
-                                    <div className="bg-black/80 backdrop-blur-xl text-white text-4xl md:text-5xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
-                                        BEFORE
+                                <div className="absolute top-4 left-4 z-10">
+                                    <div className="bg-gradient-to-br from-gray-800/95 to-gray-900/95 backdrop-blur-xl text-white text-2xl md:text-3xl font-bold px-4 py-2 rounded-lg border border-white/20 shadow-lg" style={{ fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.05em' }}>
+                                        Before
                                     </div>
                                     {originalImage.width && originalImage.height && (
-                                        <div className="text-left mt-2 text-white/90 text-xs font-bold ml-1">
+                                        <div className="text-left mt-1.5 text-white/70 text-[10px] font-medium ml-1" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
                                             {originalImage.width} × {originalImage.height}px
                                         </div>
                                     )}
                                 </div>
-                                <div className="w-full h-[560px] flex items-center justify-center">
+                                <div className="w-full h-[560px] flex items-center justify-center bg-gray-950">
                                     <img
                                         src={originalUrl}
                                         alt="Before"
-                                        className="max-w-full max-h-full object-contain"
+                                        className="w-full h-full object-contain"
                                         draggable={false}
                                     />
                                 </div>
@@ -118,21 +118,21 @@ export default function DownloadPage() {
 
                             {/* AFTER */}
                             <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
-                                <div className="absolute top-6 right-6 z-10">
-                                    <div className="bg-emerald-600/90 backdrop-blur-xl text-white text-4xl md:text-5xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
-                                        AFTER
+                                <div className="absolute top-4 right-4 z-10">
+                                    <div className="bg-gradient-to-br from-emerald-500/95 to-emerald-600/95 backdrop-blur-xl text-white text-2xl md:text-3xl font-bold px-4 py-2 rounded-lg border border-white/20 shadow-lg" style={{ fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.05em' }}>
+                                        After
                                     </div>
                                     {processedImage.width && processedImage.height && (
-                                        <div className="text-right mt-2 text-white/90 text-xs font-bold mr-1">
+                                        <div className="text-right mt-1.5 text-white/70 text-[10px] font-medium mr-1" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
                                             {processedImage.width} × {processedImage.height}px
                                         </div>
                                     )}
                                 </div>
-                                <div className="w-full h-[560px] flex items-center justify-center">
+                                <div className="w-full h-[560px] flex items-center justify-center bg-gray-950">
                                     <img
                                         src={processedUrl}
                                         alt="After"
-                                        className="max-w-full max-h-full object-contain"
+                                        className="w-full h-full object-contain"
                                         draggable={false}
                                     />
                                 </div>
