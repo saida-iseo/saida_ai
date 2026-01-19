@@ -3,13 +3,32 @@
 import React, { useState } from 'react';
 import { Chrome, Facebook, MessageCircle, Mail } from 'lucide-react';
 import Link from 'next/link';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const router = useRouter();
+
+    const handleGoogleLogin = async () => {
+        try {
+            const result = await signIn('google', {
+                callbackUrl: '/',
+                redirect: true,
+            });
+        } catch (error) {
+            console.error('Google 로그인 오류:', error);
+            alert('Google 로그인 중 오류가 발생했습니다.');
+        }
+    };
 
     const handleSocialLogin = (provider: string) => {
-        alert(`${provider} 로그인은 준비 중입니다. OAuth 설정 후 활성화됩니다.`);
+        if (provider === 'Google') {
+            handleGoogleLogin();
+        } else {
+            alert(`${provider} 로그인은 준비 중입니다.`);
+        }
     };
 
     const handleEmailLogin = (e: React.FormEvent) => {

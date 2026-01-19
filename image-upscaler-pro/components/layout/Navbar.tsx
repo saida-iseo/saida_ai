@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store/useAppStore';
-import { Heart, Sun, Moon, MoveDiagonal, Files, Droplets, Scissors, RotateCw, Palette, Square } from 'lucide-react';
+import { Heart, Sun, Moon, MoveDiagonal, Files, Droplets, Scissors, RotateCw, Palette, Square, LogOut, User } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { useSession, signOut } from 'next-auth/react';
 
 const categories = [
     { icon: MoveDiagonal, label: '크기 조절', href: '/tools/resize' },
@@ -19,6 +20,7 @@ const categories = [
 export default function Navbar() {
     const { theme, toggleTheme } = useAppStore();
     const pathname = usePathname();
+    const { data: session, status } = useSession();
 
     // 카테고리를 3번 복제하여 끊김 없는 무한 스크롤 구현
     const tripleCategories = [...categories, ...categories, ...categories];
@@ -45,12 +47,41 @@ export default function Navbar() {
                         Premium
                     </button>
                     
-                    <Link
-                        href="/login"
-                        className="hidden sm:inline-flex text-[11px] font-bold text-text-primary px-4 py-1.5 rounded-full bg-card-bg border border-card-border hover:text-accent transition-all"
-                    >
-                        로그인
-                    </Link>
+                    {status === 'loading' ? (
+                        <div className="hidden sm:block w-20 h-7 bg-card-bg border border-card-border rounded-full animate-pulse" />
+                    ) : session ? (
+                        <div className="hidden sm:flex items-center gap-2">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card-bg border border-card-border">
+                                {session.user?.image ? (
+                                    <img 
+                                        src={session.user.image} 
+                                        alt={session.user.name || 'User'} 
+                                        className="w-5 h-5 rounded-full"
+                                    />
+                                ) : (
+                                    <User className="h-4 w-4 text-text-secondary" />
+                                )}
+                                <span className="text-[11px] font-bold text-text-primary">
+                                    {session.user?.name || session.user?.email?.split('@')[0] || '사용자'}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => signOut({ callbackUrl: '/' })}
+                                className="p-2 rounded-xl bg-card-bg text-text-secondary hover:text-text-primary border border-card-border transition-all"
+                                aria-label="로그아웃"
+                                title="로그아웃"
+                            >
+                                <LogOut className="h-4 w-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <Link
+                            href="/login"
+                            className="hidden sm:inline-flex text-[11px] font-bold text-text-primary px-4 py-1.5 rounded-full bg-card-bg border border-card-border hover:text-accent transition-all"
+                        >
+                            로그인
+                        </Link>
+                    )}
                     
                     <button
                         onClick={toggleTheme}

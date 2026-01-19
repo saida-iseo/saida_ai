@@ -51,21 +51,27 @@ export default function EditorPage() {
             const blob = await imageDb.getImage(originalImage.id);
             if (blob) {
                 setOriginalBlob(blob);
+                const url = URL.createObjectURL(blob);
                 setImgUrl(prev => {
                     if (prev) URL.revokeObjectURL(prev);
-                    return URL.createObjectURL(blob);
+                    return url;
                 });
-                // 즉시 2x 스케일링 미리보기 생성
-                const defaultFactor = upscaleFactor || 2;
-                await updatePreview(blob, defaultFactor);
                 
-                // 자동으로 2x 스케일링 시작 (처음 로드 시에만, 한 번만)
+                // 즉시 2x 스케일링 미리보기 생성 (완료 대기)
+                const defaultFactor = upscaleFactor || 2;
+                try {
+                    await updatePreview(blob, defaultFactor);
+                } catch (error) {
+                    console.error('미리보기 생성 실패:', error);
+                }
+                
+                // 미리보기 생성 완료 후 즉시 자동 스케일링 시작 (지연 없이)
                 if (!processedImage && !isProcessing && !autoStartedRef.current) {
                     autoStartedRef.current = true;
-                    // 약간의 지연 후 자동 시작
-                    setTimeout(() => {
+                    // 다음 틱에서 실행하여 상태 업데이트가 완료된 후 시작
+                    requestAnimationFrame(() => {
                         startUpscale();
-                    }, 500);
+                    });
                 }
             }
         };
@@ -78,14 +84,7 @@ export default function EditorPage() {
         };
     }, [originalImage, router, processedImage, isProcessing, upscaleFactor, updatePreview, startUpscale]);
 
-    useEffect(() => {
-        if (originalBlob && !isProcessing) {
-            const scale = targetSize
-                ? Math.min(targetSize.width / (originalImage?.width || 1), targetSize.height / (originalImage?.height || 1))
-                : upscaleFactor;
-            updatePreview(originalBlob, scale);
-        }
-    }, [upscaleFactor, targetSize, originalBlob, isProcessing, updatePreview, originalImage]);
+    // 이 useEffect는 제거 - loadOriginal에서 직접 처리하므로 중복 방지
 
     // 처리된 이미지가 있으면 그것을 사용
     useEffect(() => {
