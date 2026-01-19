@@ -56,7 +56,7 @@ export default function CompareSlider({
 
     return (
         <div
-            className="relative w-full max-w-[1100px] h-[560px] mx-auto overflow-hidden rounded-[2rem] bg-neutral-100 border-4 border-white shadow-2xl flex-none select-none"
+            className="relative w-full max-w-[1100px] h-[560px] mx-auto overflow-hidden rounded-[2rem] bg-gray-900 border-4 border-gray-800 shadow-2xl flex-none select-none"
             ref={containerRef}
         >
             {/* 1. BEFORE Image (Z-index base) */}
@@ -83,25 +83,51 @@ export default function CompareSlider({
                 />
             )}
 
-            {/* 3. Information Labels */}
-            <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
-                <div className="bg-black/40 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.2em] border border-white/20 w-fit">
-                    BEFORE {beforeW && beforeH ? `• ${beforeW}x${beforeH}px` : ''}
-                </div>
-            </div>
-
-            {afterUrl && (
-                <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-10">
-                    <div className="bg-emerald-500/80 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.2em] border border-white/20 w-fit">
-                        AI AFTER {afterW && afterH ? `• ${afterW}x${afterH}px` : ''}
+            {/* 3. Large BEFORE/AFTER Labels */}
+            <div className="absolute inset-0 pointer-events-none z-10">
+                {/* BEFORE Label - Large and Bold on Left */}
+                <div 
+                    className="absolute top-1/2 left-8 -translate-y-1/2 z-20"
+                    style={{ 
+                        opacity: afterUrl ? (sliderPos > 20 ? 1 : sliderPos / 20) : 1,
+                        transition: 'opacity 0.2s ease'
+                    }}
+                >
+                    <div className="bg-black/80 backdrop-blur-xl text-white text-5xl md:text-7xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
+                        BEFORE
                     </div>
+                    {beforeW && beforeH && (
+                        <div className="text-left mt-2 text-white/90 text-xs font-bold ml-1">
+                            {beforeW} × {beforeH}px
+                        </div>
+                    )}
                 </div>
-            )}
+
+                {/* AFTER Label - Large and Bold on Right */}
+                {afterUrl && (
+                    <div 
+                        className="absolute top-1/2 right-8 -translate-y-1/2 z-20"
+                        style={{ 
+                            opacity: sliderPos < 80 ? 1 : (100 - sliderPos) / 20,
+                            transition: 'opacity 0.2s ease'
+                        }}
+                    >
+                        <div className="bg-emerald-600/90 backdrop-blur-xl text-white text-5xl md:text-7xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
+                            AFTER
+                        </div>
+                        {afterW && afterH && (
+                            <div className="text-right mt-2 text-white/90 text-xs font-bold mr-1">
+                                {afterW} × {afterH}px
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* 4. Draggable Divider Handle */}
             {afterUrl && (
                 <div
-                    className="absolute inset-y-0 w-1.5 bg-white shadow-[0_0_20px_rgba(0,0,0,0.4)] cursor-ew-resize z-20"
+                    className="absolute inset-y-0 w-2 bg-white/90 shadow-[0_0_30px_rgba(0,0,0,0.6)] cursor-ew-resize z-30"
                     style={{ 
                         left: `calc(8px + ${sliderPos}% * (100% - 16px) / 100)`,
                         top: '4px',
@@ -111,11 +137,16 @@ export default function CompareSlider({
                     onPointerMove={onPointerMove}
                     onPointerUp={onPointerUp}
                 >
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-white shadow-2xl flex items-center justify-center border-[5px] border-emerald-500 transition-transform active:scale-90 pointer-events-none">
-                        <div className="flex gap-1.5">
-                            <div className="h-4 w-1 bg-emerald-500 rounded-full" />
-                            <div className="h-4 w-1 bg-emerald-500 rounded-full" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-16 w-16 rounded-full bg-white shadow-2xl flex items-center justify-center border-[6px] border-emerald-500 transition-transform active:scale-90 pointer-events-none">
+                        <div className="flex gap-2">
+                            <div className="h-5 w-1.5 bg-emerald-500 rounded-full" />
+                            <div className="h-5 w-1.5 bg-emerald-500 rounded-full" />
                         </div>
+                    </div>
+                    {/* Arrow indicators */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                        <div className="absolute -left-8 top-1/2 -translate-y-1/2 text-white text-2xl font-black">◀</div>
+                        <div className="absolute -right-8 top-1/2 -translate-y-1/2 text-white text-2xl font-black">▶</div>
                     </div>
                 </div>
             )}
