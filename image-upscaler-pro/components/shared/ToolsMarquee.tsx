@@ -10,14 +10,13 @@ import {
   RotateCw, 
   Palette, 
   Square, 
-  Eraser,
   Type
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils/cn';
 
 const tools = [
-  { icon: Sparkles, label: 'AI 업스케일', href: '/upscale', gradient: 'from-pink-500 via-purple-500 to-blue-500' },
+  { icon: Sparkles, label: 'AI업스케일&화질개선', href: '/upscale', gradient: 'from-pink-500 via-purple-500 to-blue-500' },
   { icon: Zap, label: '이미지 압축', href: '/tools/compress', gradient: 'from-green-500 to-emerald-600' },
   { icon: MoveDiagonal, label: '크기 조절', href: '/tools/resize', gradient: 'from-blue-500 to-cyan-500' },
   { icon: Files, label: '포맷 변환', href: '/tools/convert', gradient: 'from-purple-500 to-pink-500' },
@@ -27,7 +26,6 @@ const tools = [
   { icon: Palette, label: '컬러 보정', href: '/tools/adjust', gradient: 'from-purple-500 to-violet-500' },
   { icon: Square, label: '프레임', href: '/tools/frame', gradient: 'from-green-500 to-teal-500' },
   { icon: Type, label: '워터마크', href: '/tools/watermark-maker', gradient: 'from-indigo-500 to-blue-500' },
-  { icon: Eraser, label: 'AI 배경 제거', href: '/ai/background-remove', gradient: 'from-green-500 to-emerald-500' },
 ];
 
 export default function ToolsMarquee() {
