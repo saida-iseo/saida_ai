@@ -98,6 +98,9 @@ export default function EditorPage() {
                 }
             };
             loadProcessed();
+        } else {
+            // 처리된 이미지가 없으면 previewUrl 초기화 (로딩 상태 표시)
+            setPreviewUrl(null);
         }
     }, [processedImage]);
 
