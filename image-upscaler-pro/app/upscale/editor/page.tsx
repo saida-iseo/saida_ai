@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { imageDb } from '@/lib/db/imageDb';
 import { useRouter } from 'next/navigation';
-import CompareSlider from '@/components/ui/CompareSlider';
 import OptionsPanel from '@/components/ui/OptionsPanel';
 import HelpPanel from '@/components/shared/HelpPanel';
 import { useUpscale } from '@/hooks/useUpscale';
@@ -217,16 +216,71 @@ export default function EditorPage() {
                         </div>
                     </div>
 
-                    {/* The Professional Shake-Free Slider */}
-                    <CompareSlider
-                        beforeUrl={imgUrl}
-                        afterUrl={isProcessing ? null : previewUrl}
-                        beforeW={originalImage.width}
-                        beforeH={originalImage.height}
-                        afterW={afterWidth}
-                        afterH={afterHeight}
-                        zoom={zoom}
-                    />
+                    {/* BEFORE / AFTER Side by Side */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* BEFORE */}
+                        <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
+                            <div className="absolute top-6 left-6 z-10">
+                                <div className="bg-black/80 backdrop-blur-xl text-white text-4xl md:text-5xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
+                                    BEFORE
+                                </div>
+                                {originalImage.width && originalImage.height && (
+                                    <div className="text-left mt-2 text-white/90 text-xs font-bold ml-1">
+                                        {originalImage.width} × {originalImage.height}px
+                                    </div>
+                                )}
+                            </div>
+                            <div className="w-full h-[560px] flex items-center justify-center">
+                                <img
+                                    src={imgUrl}
+                                    alt="Before"
+                                    className="max-w-full max-h-full object-contain"
+                                    style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+                                    draggable={false}
+                                />
+                            </div>
+                        </div>
+
+                        {/* AFTER */}
+                        <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
+                            {previewUrl && !isProcessing ? (
+                                <>
+                                    <div className="absolute top-6 right-6 z-10">
+                                        <div className="bg-emerald-600/90 backdrop-blur-xl text-white text-4xl md:text-5xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
+                                            AFTER
+                                        </div>
+                                        {afterWidth && afterHeight && (
+                                            <div className="text-right mt-2 text-white/90 text-xs font-bold mr-1">
+                                                {afterWidth} × {afterHeight}px
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="w-full h-[560px] flex items-center justify-center">
+                                        <img
+                                            src={previewUrl}
+                                            alt="After"
+                                            className="max-w-full max-h-full object-contain"
+                                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+                                            draggable={false}
+                                        />
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="w-full h-[560px] flex items-center justify-center">
+                                    {isProcessing ? (
+                                        <div className="text-center">
+                                            <Loader2 className="h-12 w-12 text-emerald-500 animate-spin mx-auto mb-4" />
+                                            <p className="text-white text-lg font-bold">{progressStatus || '처리 중...'}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center text-gray-500">
+                                            <p className="text-lg font-bold">미리보기 준비 중...</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Download Button */}
                     {previewUrl && (

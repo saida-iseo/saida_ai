@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store/useAppStore';
 import { imageDb } from '@/lib/db/imageDb';
 import { useRouter } from 'next/navigation';
-import CompareSlider from '@/components/ui/CompareSlider';
 import DownloadGate from '@/components/shared/DownloadGate';
 import HelpPanel from '@/components/shared/HelpPanel';
 import Toast from '@/components/shared/Toast';
@@ -92,16 +91,53 @@ export default function DownloadPage() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 items-start">
-                    {/* Left: Professional Comparison Slider */}
+                    {/* Left: BEFORE / AFTER Side by Side */}
                     <div className="xl:col-span-8 flex flex-col gap-6">
-                        <CompareSlider
-                            beforeUrl={originalUrl}
-                            afterUrl={processedUrl}
-                            beforeW={originalImage.width}
-                            beforeH={originalImage.height}
-                            afterW={processedImage.width}
-                            afterH={processedImage.height}
-                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* BEFORE */}
+                            <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
+                                <div className="absolute top-6 left-6 z-10">
+                                    <div className="bg-black/80 backdrop-blur-xl text-white text-4xl md:text-5xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
+                                        BEFORE
+                                    </div>
+                                    {originalImage.width && originalImage.height && (
+                                        <div className="text-left mt-2 text-white/90 text-xs font-bold ml-1">
+                                            {originalImage.width} × {originalImage.height}px
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="w-full h-[560px] flex items-center justify-center">
+                                    <img
+                                        src={originalUrl}
+                                        alt="Before"
+                                        className="max-w-full max-h-full object-contain"
+                                        draggable={false}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* AFTER */}
+                            <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
+                                <div className="absolute top-6 right-6 z-10">
+                                    <div className="bg-emerald-600/90 backdrop-blur-xl text-white text-4xl md:text-5xl font-black uppercase tracking-wider px-6 py-3 rounded-xl border-4 border-white/40 shadow-2xl">
+                                        AFTER
+                                    </div>
+                                    {processedImage.width && processedImage.height && (
+                                        <div className="text-right mt-2 text-white/90 text-xs font-bold mr-1">
+                                            {processedImage.width} × {processedImage.height}px
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="w-full h-[560px] flex items-center justify-center">
+                                    <img
+                                        src={processedUrl}
+                                        alt="After"
+                                        className="max-w-full max-h-full object-contain"
+                                        draggable={false}
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Right: Actions & Guides */}
