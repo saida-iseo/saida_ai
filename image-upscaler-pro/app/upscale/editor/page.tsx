@@ -254,7 +254,7 @@ export default function EditorPage() {
                                 </div>
                             </div>
                             <div className="relative w-full bg-gray-900 rounded-[2rem] border-4 border-gray-800 shadow-2xl overflow-hidden">
-                                {previewUrl && !isProcessing ? (
+                                {previewUrl ? (
                                     <div className="w-full h-[560px] flex items-center justify-center bg-gray-950">
                                         <img
                                             src={previewUrl}
@@ -272,8 +272,9 @@ export default function EditorPage() {
                                                 <p className="text-white text-lg font-bold">{progressStatus || '처리 중...'}</p>
                                             </div>
                                         ) : (
-                                            <div className="text-center text-gray-500">
-                                                <p className="text-lg font-bold">미리보기 준비 중...</p>
+                                            <div className="text-center">
+                                                <Loader2 className="h-12 w-12 text-emerald-500 animate-spin mx-auto mb-4" />
+                                                <p className="text-white text-lg font-bold">미리보기 생성 중...</p>
                                             </div>
                                         )}
                                     </div>
