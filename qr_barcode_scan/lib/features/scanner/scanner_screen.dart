@@ -48,6 +48,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final barcode = capture.barcodes.firstOrNull;
     final value = barcode?.rawValue;
     if (value == null || value.isEmpty) return;
+    final format = barcode?.format;
+    if (!_isBarcodeMode && format != BarcodeFormat.qrCode) return;
+    if (_isBarcodeMode && format == BarcodeFormat.qrCode) return;
 
     final now = DateTime.now();
     if (_lastValue == value && _lastScanTime != null) {
@@ -65,8 +68,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       SystemSound.play(SystemSoundType.click);
     }
 
-    final parsed = parsePayload(value);
+    final parsed = _parseForMode(value, format);
     final meta = <String, dynamic>{...parsed.data};
+    if (format != null) {
+      meta['format'] = format.name;
+    }
     if (imagePath != null) {
       meta['imagePath'] = imagePath;
     }
@@ -107,6 +113,51 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     await _controller.start();
   }
 
+  ParsedResult _parseForMode(String value, BarcodeFormat? format) {
+    if (format != null && format != BarcodeFormat.qrCode) {
+      return ParsedResult(
+        type: PayloadType.barcode,
+        raw: value,
+        data: {
+          'format': format.name,
+          'formatLabel': _barcodeFormatLabel(format),
+        },
+      );
+    }
+    return parsePayload(value);
+  }
+
+  String _barcodeFormatLabel(BarcodeFormat format) {
+    switch (format) {
+      case BarcodeFormat.ean13:
+        return 'EAN-13';
+      case BarcodeFormat.ean8:
+        return 'EAN-8';
+      case BarcodeFormat.upcA:
+        return 'UPC-A';
+      case BarcodeFormat.upcE:
+        return 'UPC-E';
+      case BarcodeFormat.code128:
+        return 'Code 128';
+      case BarcodeFormat.code39:
+        return 'Code 39';
+      case BarcodeFormat.code93:
+        return 'Code 93';
+      case BarcodeFormat.itf:
+        return 'ITF';
+      case BarcodeFormat.codabar:
+        return 'Codabar';
+      case BarcodeFormat.dataMatrix:
+        return 'Data Matrix';
+      case BarcodeFormat.pdf417:
+        return 'PDF417';
+      case BarcodeFormat.aztec:
+        return 'Aztec';
+      default:
+        return format.name.toUpperCase();
+    }
+  }
+
   Future<void> _pickFromGallery() async {
     if (_isSheetOpen) return;
     final picker = ImagePicker();
@@ -125,6 +176,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _openUrlWithSafety(BuildContext context, String url) async {
+    final settings = ref.read(settingsProvider);
+    if (!settings.safetyCheck) {
+      await launchUrlPreferApp(url);
+      return;
+    }
     final safety = evaluateUrlSafety(url);
     if (safety.requiresConfirm) {
       final proceed = await showDialog<bool>(
@@ -164,22 +220,41 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       children: [
         Positioned.fill(
           child: _permissionGranted
-              ? MobileScanner(
-                  controller: _controller,
-                  fit: BoxFit.cover,
-                  onDetect: _handleBarcode,
-                  errorBuilder: (context, error, child) {
-                    return Center(
-                      child: Text(
-                        '카메라 오류가 발생했습니다.',
-                        style: TextStyle(color: Colors.white.withOpacity(0.9)),
-                      ),
+              ? LayoutBuilder(
+                  builder: (context, constraints) {
+                    final size = (constraints.biggest.shortestSide) * 0.7;
+                    final scanWindow = Rect.fromCenter(
+                      center: Offset(constraints.maxWidth / 2, constraints.maxHeight / 2),
+                      width: size,
+                      height: size,
+                    );
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        MobileScanner(
+                          controller: _controller,
+                          fit: BoxFit.cover,
+                          scanWindow: scanWindow,
+                          onDetect: _handleBarcode,
+                          errorBuilder: (context, error, child) {
+                            return Center(
+                              child: Text(
+                                '카메라 오류가 발생했습니다.',
+                                style: TextStyle(color: Colors.white.withOpacity(0.9)),
+                              ),
+                            );
+                          },
+                        ),
+                        ScanOverlay(
+                          scanWindow: scanWindow,
+                          label: _isBarcodeMode ? '이 곳에 바코드를 위치시켜 주세요' : '이 곳에 QR 코드를 위치시켜 주세요',
+                        ),
+                      ],
                     );
                   },
                 )
               : _PermissionPrompt(onRetry: _requestCameraPermission),
         ),
-        if (_permissionGranted) ScanOverlay(isBarcode: _isBarcodeMode),
         Positioned(
           top: 0,
           left: 0,
@@ -191,30 +266,43 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(18),
+                      Text(
+                        _isBarcodeMode ? '바코드 스캔' : 'QR 스캔',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
                         ),
-                        child: Text(
-                          settings.autoFocus ? '자동 인식 중' : '자동 초점 꺼짐',
-                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const Spacer(),
+                      const SizedBox(height: 10),
+                      _ModeSegmented(
+                        isBarcode: _isBarcodeMode,
+                        onChanged: (value) => setState(() => _isBarcodeMode = value),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '이 곳에 QR을 가까이 대보세요',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      _SettingDropdown(
+                        label: 'URL 자동 열기',
+                        enabled: settings.autoOpenUrl,
+                        onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
+                      ),
+                      _SettingDropdown(
+                        label: '안전 검사',
+                        enabled: settings.safetyCheck,
+                        onChanged: (_) => ref.read(settingsProvider.notifier).toggleSafetyCheck(),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -241,11 +329,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       icon: Icons.photo_library_outlined,
                       label: '앨범',
                       onTap: _pickFromGallery,
-                    ),
-                    _ScanControlButton(
-                      icon: _isBarcodeMode ? Icons.view_week : Icons.qr_code_2,
-                      label: _isBarcodeMode ? '바코드' : 'QR',
-                      onTap: () => setState(() => _isBarcodeMode = !_isBarcodeMode),
                     ),
                     _ScanControlButton(
                       icon: _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
@@ -297,6 +380,136 @@ class _ScanControlButton extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeSegmented extends StatelessWidget {
+  const _ModeSegmented({
+    required this.isBarcode,
+    required this.onChanged,
+  });
+
+  final bool isBarcode;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final inactive = Colors.white.withOpacity(0.5);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ModePill(
+            label: 'QR',
+            selected: !isBarcode,
+            onTap: () => onChanged(false),
+          ),
+          const SizedBox(width: 6),
+          _ModePill(
+            label: '바코드',
+            selected: isBarcode,
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModePill extends StatelessWidget {
+  const _ModePill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 80),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? colorScheme.primary : Colors.white.withOpacity(0.7),
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingDropdown extends StatelessWidget {
+  const _SettingDropdown({
+    required this.label,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<bool>(
+      onSelected: onChanged,
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: true, child: Text('켜짐')),
+        PopupMenuItem(value: false, child: Text('꺼짐')),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.45),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              enabled ? '켜짐' : '꺼짐',
+              style: TextStyle(
+                color: enabled ? Theme.of(context).colorScheme.primary : Colors.white70,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.expand_more, color: Colors.white70, size: 16),
+          ],
         ),
       ),
     );

@@ -14,17 +14,24 @@ void main() async {
   runApp(const ProviderScope(child: QrBarcodeApp()));
 }
 
-class QrBarcodeApp extends StatelessWidget {
+class QrBarcodeApp extends ConsumerWidget {
   const QrBarcodeApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final themeMode = switch (settings.themeMode) {
+      AppThemeMode.light => ThemeMode.light,
+      AppThemeMode.dark => ThemeMode.dark,
+      AppThemeMode.system => ThemeMode.system,
+    };
+
     return MaterialApp(
       title: 'QR-Barcode scan',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       home: const _SplashGate(),
     );
   }

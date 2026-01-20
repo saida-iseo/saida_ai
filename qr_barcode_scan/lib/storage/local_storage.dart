@@ -58,24 +58,32 @@ class AppSettings {
     this.sound = true,
     this.autoFocus = true,
     this.autoOpenUrl = false,
+    this.safetyCheck = true,
+    this.themeMode = AppThemeMode.system,
   });
 
   final bool vibrate;
   final bool sound;
   final bool autoFocus;
   final bool autoOpenUrl;
+  final bool safetyCheck;
+  final AppThemeMode themeMode;
 
   AppSettings copyWith({
     bool? vibrate,
     bool? sound,
     bool? autoFocus,
     bool? autoOpenUrl,
+    bool? safetyCheck,
+    AppThemeMode? themeMode,
   }) {
     return AppSettings(
       vibrate: vibrate ?? this.vibrate,
       sound: sound ?? this.sound,
       autoFocus: autoFocus ?? this.autoFocus,
       autoOpenUrl: autoOpenUrl ?? this.autoOpenUrl,
+      safetyCheck: safetyCheck ?? this.safetyCheck,
+      themeMode: themeMode ?? this.themeMode,
     );
   }
 
@@ -85,6 +93,8 @@ class AppSettings {
       sound: map['sound'] as bool? ?? true,
       autoFocus: map['autoFocus'] as bool? ?? true,
       autoOpenUrl: map['autoOpenUrl'] as bool? ?? true,
+      safetyCheck: map['safetyCheck'] as bool? ?? true,
+      themeMode: AppThemeModeX.fromString(map['themeMode'] as String?),
     );
   }
 
@@ -94,7 +104,20 @@ class AppSettings {
       'sound': sound,
       'autoFocus': autoFocus,
       'autoOpenUrl': autoOpenUrl,
+      'safetyCheck': safetyCheck,
+      'themeMode': themeMode.name,
     };
+  }
+}
+
+enum AppThemeMode { system, light, dark }
+
+extension AppThemeModeX on AppThemeMode {
+  static AppThemeMode fromString(String? value) {
+    return AppThemeMode.values.firstWhere(
+      (mode) => mode.name == value,
+      orElse: () => AppThemeMode.system,
+    );
   }
 }
 
@@ -120,6 +143,14 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> toggleAutoOpenUrl() async {
     await update(state.copyWith(autoOpenUrl: !state.autoOpenUrl));
+  }
+
+  Future<void> toggleSafetyCheck() async {
+    await update(state.copyWith(safetyCheck: !state.safetyCheck));
+  }
+
+  Future<void> setThemeMode(AppThemeMode mode) async {
+    await update(state.copyWith(themeMode: mode));
   }
 }
 

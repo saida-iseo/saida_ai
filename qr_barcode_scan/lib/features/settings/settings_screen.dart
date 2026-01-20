@@ -13,28 +13,37 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final titleStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12, fontWeight: FontWeight.w600);
+    final subtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
+    const tilePadding = EdgeInsets.symmetric(horizontal: 12, vertical: 2);
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + bottomInset),
+      padding: EdgeInsets.fromLTRB(20, 10, 20, 20 + bottomInset),
       children: [
         Text('설정', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         _SectionTitle(title: '기본 설정'),
         _SwitchTile(
           title: '진동',
           value: settings.vibrate,
           onChanged: (_) => ref.read(settingsProvider.notifier).toggleVibrate(),
+          titleStyle: titleStyle,
+          subtitleStyle: subtitleStyle,
         ),
         _SwitchTile(
           title: '소리',
           value: settings.sound,
           onChanged: (_) => ref.read(settingsProvider.notifier).toggleSound(),
+          titleStyle: titleStyle,
+          subtitleStyle: subtitleStyle,
         ),
         _SwitchTile(
           title: '자동 초점',
           value: settings.autoFocus,
           onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoFocus(),
           subtitle: settings.autoFocus ? '현재 상태: 사용 중' : '현재 상태: 사용 안 함',
+          titleStyle: titleStyle,
+          subtitleStyle: subtitleStyle,
         ),
         _SwitchTile(
           title: 'URL 자동 열기',
@@ -60,12 +69,42 @@ class SettingsScreen extends ConsumerWidget {
             }
           },
           subtitle: '기본 OFF · 필요할 때만 직접 열기를 권장합니다.',
+          titleStyle: titleStyle,
+          subtitleStyle: subtitleStyle,
         ),
-        const SizedBox(height: 12),
+        Padding(
+          padding: tilePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('테마', style: titleStyle),
+              const SizedBox(height: 6),
+              Text('라이트/다크 전환', style: subtitleStyle),
+              const SizedBox(height: 8),
+              SegmentedButton<AppThemeMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: AppThemeMode.system, label: Text('시스템')),
+                  ButtonSegment(value: AppThemeMode.light, label: Text('라이트')),
+                  ButtonSegment(value: AppThemeMode.dark, label: Text('다크')),
+                ],
+                selected: {settings.themeMode},
+                onSelectionChanged: (value) {
+                  ref.read(settingsProvider.notifier).setThemeMode(value.first);
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
         _SectionTitle(title: '권한'),
         ListTile(
-          title: const Text('알림 권한 요청'),
-          subtitle: const Text('탭하여 권한을 요청합니다.'),
+          contentPadding: tilePadding,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          minVerticalPadding: 0,
+          title: Text('알림 권한 요청', style: titleStyle),
+          subtitle: Text('탭하여 권한을 요청합니다.', style: subtitleStyle),
           trailing: const Icon(Icons.chevron_right),
           onTap: () async {
             await Permission.notification.request();
@@ -75,14 +114,22 @@ class SettingsScreen extends ConsumerWidget {
             );
           },
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _SectionTitle(title: '정보'),
         ListTile(
-          title: const Text('언어'),
-          subtitle: const Text('한국어'),
+          contentPadding: tilePadding,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          minVerticalPadding: 0,
+          title: Text('언어', style: titleStyle),
+          subtitle: Text('한국어', style: subtitleStyle),
         ),
         ListTile(
-          title: const Text('문의하기'),
+          contentPadding: tilePadding,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          minVerticalPadding: 0,
+          title: Text('문의하기', style: titleStyle),
           trailing: const Icon(Icons.chevron_right),
           onTap: () async {
             final uri = Uri(
@@ -96,12 +143,20 @@ class SettingsScreen extends ConsumerWidget {
           },
         ),
         ListTile(
-          title: const Text('앱 공유'),
+          contentPadding: tilePadding,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          minVerticalPadding: 0,
+          title: Text('앱 공유', style: titleStyle),
           trailing: const Icon(Icons.share),
           onTap: () => Share.share('QR-Barcode scan 앱을 공유해보세요!'),
         ),
         ListTile(
-          title: const Text('개인정보 보호정책'),
+          contentPadding: tilePadding,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          minVerticalPadding: 0,
+          title: Text('개인정보 보호정책', style: titleStyle),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.push(
             context,
@@ -114,7 +169,11 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
         ListTile(
-          title: const Text('서비스 약관'),
+          contentPadding: tilePadding,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          minVerticalPadding: 0,
+          title: Text('서비스 약관', style: titleStyle),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.push(
             context,
@@ -127,7 +186,11 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
         ListTile(
-          title: const Text('앱 평가'),
+          contentPadding: tilePadding,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          minVerticalPadding: 0,
+          title: Text('앱 평가', style: titleStyle),
           trailing: const Icon(Icons.star_rate),
           onTap: () => _showPlaceholder(context),
         ),
@@ -150,8 +213,11 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, fontSize: 12),
+      ),
     );
   }
 }
@@ -162,18 +228,25 @@ class _SwitchTile extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.subtitle,
+    this.titleStyle,
+    this.subtitleStyle,
   });
 
   final String title;
   final bool value;
   final ValueChanged<bool> onChanged;
   final String? subtitle;
+  final TextStyle? titleStyle;
+  final TextStyle? subtitleStyle;
 
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
-      title: Text(title),
-      subtitle: subtitle == null ? null : Text(subtitle!),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      title: Text(title, style: titleStyle),
+      subtitle: subtitle == null ? null : Text(subtitle!, style: subtitleStyle),
       value: value,
       onChanged: onChanged,
     );

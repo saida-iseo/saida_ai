@@ -43,9 +43,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 children: [
                   Text('기록', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                   const Spacer(),
-                  TextButton(
+                  OutlinedButton(
                     onPressed: items.isEmpty ? null : () => _confirmClear(context, items),
-                    style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                     child: const Text('전체 삭제'),
                   ),
                 ],
@@ -173,7 +177,7 @@ class _HistoryTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.12),
+                          color: const Color(0xFFDBEAFE),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -192,14 +196,12 @@ class _HistoryTile extends StatelessWidget {
                     info.subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF475569)),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '${date.year}.${date.month}.${date.day} · ${item.source == HistorySource.scan ? '스캔' : '생성'}',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(color: const Color(0xFF475569)),
                   ),
                 ],
               ),
@@ -209,7 +211,7 @@ class _HistoryTile extends StatelessWidget {
               icon: const Icon(Icons.more_horiz),
               itemBuilder: (context) => [
                 const PopupMenuItem(value: _HistoryAction.copy, child: Text('복사')),
-                if (item.type == PayloadType.url)
+                if (_canOpenUrl(item))
                   const PopupMenuItem(value: _HistoryAction.open, child: Text('열기')),
                 const PopupMenuItem(value: _HistoryAction.share, child: Text('공유')),
                 const PopupMenuDivider(),
@@ -223,7 +225,34 @@ class _HistoryTile extends StatelessWidget {
   }
 
   Future<void> _showDetail(BuildContext context, HistoryItem item) async {
-    final parsed = parsePayload(item.value);
+    final parsed = item.type == PayloadType.barcode
+        ? ParsedResult(
+            type: PayloadType.barcode,
+            raw: item.value,
+            data: {
+              if (item.meta?['format'] != null) 'format': item.meta?['format'].toString() ?? '',
+              if (item.meta?['formatLabel'] != null) 'formatLabel': item.meta?['formatLabel'].toString() ?? '',
+            },
+          )
+        : item.type == PayloadType.pdf ||
+                item.type == PayloadType.image ||
+                item.type == PayloadType.video ||
+                item.type == PayloadType.social ||
+                item.type == PayloadType.playlist ||
+                item.type == PayloadType.vcard
+            ? ParsedResult(
+                type: item.type,
+                raw: item.value,
+                data: {
+                  if (item.meta?['url'] != null) 'url': item.meta?['url'].toString() ?? '',
+                  if (item.meta?['label'] != null) 'label': item.meta?['label'].toString() ?? '',
+                  if (item.meta?['name'] != null) 'name': item.meta?['name'].toString() ?? '',
+                  if (item.meta?['org'] != null) 'org': item.meta?['org'].toString() ?? '',
+                  if (item.meta?['phone'] != null) 'phone': item.meta?['phone'].toString() ?? '',
+                  if (item.meta?['email'] != null) 'email': item.meta?['email'].toString() ?? '',
+                },
+              )
+            : parsePayload(item.value);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -253,6 +282,21 @@ class _HistoryTile extends StatelessWidget {
         return _HistoryInfo(title: to, subtitle: subject?.isNotEmpty == true ? subject : '이메일 QR');
       case PayloadType.text:
         return _HistoryInfo(title: item.value, subtitle: '텍스트');
+      case PayloadType.pdf:
+      case PayloadType.image:
+      case PayloadType.video:
+      case PayloadType.social:
+      case PayloadType.playlist:
+        final label = item.meta?['label'] ?? item.label;
+        final url = item.meta?['url'] ?? item.value;
+        return _HistoryInfo(title: label.toString(), subtitle: url.toString());
+      case PayloadType.vcard:
+        final name = item.meta?['name'] ?? 'Vcard Plus';
+        final org = item.meta?['org'] ?? '';
+        return _HistoryInfo(title: name.toString(), subtitle: org.toString().isEmpty ? '디지털 명함' : org.toString());
+      case PayloadType.barcode:
+        final format = item.meta?['formatLabel'] ?? item.meta?['format'] ?? '바코드';
+        return _HistoryInfo(title: item.value, subtitle: format.toString());
       case PayloadType.unknown:
         return _HistoryInfo(title: item.value, subtitle: '알 수 없는 형식');
     }
@@ -266,7 +310,7 @@ class _HistoryTile extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('복사했습니다.')));
         break;
       case _HistoryAction.open:
-        await _openUrlWithSafety(context, item.value);
+        await _openUrlWithSafety(context, _extractUrl(item));
         break;
       case _HistoryAction.share:
         await Share.share(item.value);
@@ -278,6 +322,19 @@ class _HistoryTile extends StatelessWidget {
         break;
     }
   }
+}
+
+bool _canOpenUrl(HistoryItem item) {
+  return item.type == PayloadType.url ||
+      item.type == PayloadType.pdf ||
+      item.type == PayloadType.image ||
+      item.type == PayloadType.video ||
+      item.type == PayloadType.social ||
+      item.type == PayloadType.playlist;
+}
+
+String _extractUrl(HistoryItem item) {
+  return item.meta?['url']?.toString() ?? item.value;
 }
 
 Future<void> _openUrlWithSafety(BuildContext context, String url) async {
@@ -318,14 +375,29 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        showCheckmark: true,
-        selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-        onSelected: (_) => onTap(),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFDBEAFE) : colorScheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? colorScheme.primary : colorScheme.outlineVariant,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? colorScheme.primary : const Color(0xFF0F172A),
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ),
       ),
     );
   }

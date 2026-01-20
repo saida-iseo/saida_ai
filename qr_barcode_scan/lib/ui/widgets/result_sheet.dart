@@ -1,3 +1,4 @@
+import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_barcode_scan/models/history_item.dart';
@@ -138,6 +139,89 @@ class ResultSheet extends StatelessWidget {
             Text('내용: ${result.data['body'] ?? '-'}'),
           ],
         );
+      case PayloadType.pdf:
+      case PayloadType.image:
+      case PayloadType.video:
+      case PayloadType.social:
+      case PayloadType.playlist:
+        final label = result.data['label'] ?? result.type.name.toUpperCase();
+        final url = result.data['url'] ?? result.raw;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              url,
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
+      case PayloadType.vcard:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(result.data['name'] ?? 'Vcard Plus', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if ((result.data['org'] ?? '').isNotEmpty) Text('회사: ${result.data['org']}'),
+            if ((result.data['phone'] ?? '').isNotEmpty) Text('전화: ${result.data['phone']}'),
+            if ((result.data['email'] ?? '').isNotEmpty) Text('이메일: ${result.data['email']}'),
+          ],
+        );
+      case PayloadType.barcode:
+        final format = result.data['format'] ?? '';
+        final formatLabel = result.data['formatLabel'] ?? '바코드';
+        final barcode = _barcodeFromFormat(format);
+        final isValid = barcode.isValid(result.raw);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(formatLabel, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: isValid
+                  ? BarcodeWidget(
+                      barcode: barcode,
+                      data: result.raw,
+                      drawText: false,
+                      height: 120,
+                    )
+                  : Center(
+                      child: Text(
+                        '바코드 미리보기를 생성할 수 없습니다.',
+                        style: textTheme.bodySmall,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 12),
+            Text('코드: ${result.raw}', style: textTheme.bodyMedium),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.local_offer, size: 16, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 6),
+                Text(
+                  '가격 정보는 제휴 데이터가 필요합니다.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.65),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
       case PayloadType.unknown:
         return Text(result.raw, style: textTheme.titleMedium);
     }
@@ -158,7 +242,12 @@ class ResultSheet extends StatelessWidget {
       ),
     ];
 
-    if (result.type == PayloadType.url) {
+    if (result.type == PayloadType.url ||
+        result.type == PayloadType.pdf ||
+        result.type == PayloadType.image ||
+        result.type == PayloadType.video ||
+        result.type == PayloadType.social ||
+        result.type == PayloadType.playlist) {
       actions.add(
         _ActionButton(
           label: '열기',
@@ -200,6 +289,37 @@ class ResultSheet extends StatelessWidget {
     }
 
     return actions;
+  }
+}
+
+Barcode _barcodeFromFormat(String format) {
+  switch (format) {
+    case 'ean13':
+      return Barcode.ean13();
+    case 'ean8':
+      return Barcode.ean8();
+    case 'upcA':
+      return Barcode.upcA();
+    case 'upcE':
+      return Barcode.upcE();
+    case 'code128':
+      return Barcode.code128();
+    case 'code39':
+      return Barcode.code39();
+    case 'code93':
+      return Barcode.code93();
+    case 'itf':
+      return Barcode.itf();
+    case 'codabar':
+      return Barcode.codabar();
+    case 'dataMatrix':
+      return Barcode.dataMatrix();
+    case 'pdf417':
+      return Barcode.pdf417();
+    case 'aztec':
+      return Barcode.aztec();
+    default:
+      return Barcode.code128();
   }
 }
 

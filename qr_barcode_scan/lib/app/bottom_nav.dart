@@ -72,13 +72,13 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
             children: [
               _NavItem(
                 label: '스캔',
-                icon: Icons.qr_code_scanner,
+                icon: Icons.center_focus_strong_rounded,
                 selected: index == 0,
                 onTap: () => ref.read(navIndexProvider.notifier).state = 0,
               ),
               _NavItem(
                 label: '생성',
-                icon: Icons.add_box_rounded,
+                icon: Icons.qr_code_2_rounded,
                 selected: index == 1,
                 isPrimary: true,
                 onTap: () => ref.read(navIndexProvider.notifier).state = 1,
