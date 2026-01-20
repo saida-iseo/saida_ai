@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_barcode_scan/models/history_item.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
@@ -27,6 +28,10 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
   final GlobalKey _qrKey = GlobalKey();
   GeneratorType _type = GeneratorType.url;
   String _payload = '';
+  QrDataModuleShape _moduleShape = QrDataModuleShape.square;
+  QrEyeShape _eyeShape = QrEyeShape.square;
+  Color _qrColor = Colors.black;
+  File? _logoFile;
 
   final TextEditingController _urlCtrl = TextEditingController();
   final TextEditingController _wifiSsidCtrl = TextEditingController();
@@ -87,6 +92,17 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     }
   }
 
+  Future<void> _pickLogo() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+    setState(() => _logoFile = File(image.path));
+  }
+
+  void _removeLogo() {
+    setState(() => _logoFile = null);
+  }
+
   Future<Uint8List?> _captureQrPng() async {
     final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) return null;
@@ -130,103 +146,144 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final dataStyle = QrDataModuleStyle(
+      dataModuleShape: _moduleShape,
+      color: _qrColor,
+    );
+    final eyeStyle = QrEyeStyle(
+      eyeShape: _eyeShape,
+      color: _qrColor,
+    );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('귀하의 기기에서 QR 코드를 생성해 봅시다',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          _QuickCard(
-            title: '웹사이트',
-            description: 'URL을 입력하면 바로 QR로 생성합니다.',
-            selected: _type == GeneratorType.url,
-            onTap: () => setState(() => _type = GeneratorType.url),
-          ),
-          _QuickCard(
-            title: 'Wi-Fi',
-            description: 'SSID/암호를 넣어 Wi-Fi QR을 만듭니다.',
-            selected: _type == GeneratorType.wifi,
-            onTap: () => setState(() => _type = GeneratorType.wifi),
-          ),
-          _QuickCard(
-            title: '이메일',
-            description: '수신자/제목/본문을 QR로 생성합니다.',
-            selected: _type == GeneratorType.email,
-            onTap: () => setState(() => _type = GeneratorType.email),
-          ),
-          const SizedBox(height: 16),
-          _buildInputSection(),
-          const SizedBox(height: 24),
-          Center(
-            child: RepaintBoundary(
-              key: _qrKey,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: _payload.isEmpty
-                    ? SizedBox(
-                        height: 220,
-                        width: 220,
-                        child: Center(
-                          child: Text('입력 후 생성 버튼을 누르세요', style: TextStyle(color: Colors.grey[500])),
-                        ),
-                      )
-                    : QrImageView(
-                        data: _payload,
-                        size: 220,
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 140),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _payload.isEmpty ? null : _saveQr,
-                  icon: const Icon(Icons.save_alt),
-                  label: const Text('저장'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              Text(
+                'QR 생성',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text('필요한 타입을 선택하고 내용을 입력하세요.', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 16),
+              SegmentedButton<GeneratorType>(
+                segments: const [
+                  ButtonSegment(value: GeneratorType.url, label: Text('웹사이트')),
+                  ButtonSegment(value: GeneratorType.wifi, label: Text('와이파이')),
+                  ButtonSegment(value: GeneratorType.email, label: Text('이메일')),
+                ],
+                selected: {_type},
+                onSelectionChanged: (value) => setState(() => _type = value.first),
+              ),
+              const SizedBox(height: 16),
+              _buildInputSection(),
+              const SizedBox(height: 24),
+              _buildAdvancedOptions(),
+              const SizedBox(height: 20),
+              Center(
+                child: RepaintBoundary(
+                  key: _qrKey,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: _payload.isEmpty
+                        ? SizedBox(
+                            height: 220,
+                            width: 220,
+                            child: Center(
+                              child: Text('입력 후 생성 버튼을 누르세요', style: TextStyle(color: Colors.grey[500])),
+                            ),
+                          )
+                        : QrImageView(
+                            data: _payload,
+                            size: 220,
+                            backgroundColor: Colors.white,
+                            dataModuleStyle: dataStyle,
+                            eyeStyle: eyeStyle,
+                            embeddedImage: _logoFile == null ? null : FileImage(_logoFile!),
+                            embeddedImageStyle: const QrEmbeddedImageStyle(
+                              size: Size(56, 56),
+                            ),
+                          ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _payload.isEmpty ? null : _shareQr,
-                  icon: const Icon(Icons.share),
-                  label: const Text('공유'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _payload.isEmpty ? null : _saveQr,
+                      icon: const Icon(Icons.save_alt),
+                      label: const Text('저장'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _payload.isEmpty ? null : _shareQr,
+                      icon: const Icon(Icons.share),
+                      label: const Text('공유'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: _payload.isEmpty ? null : _copyPayload,
+                  icon: const Icon(Icons.copy),
+                  label: const Text('원문 텍스트 복사'),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: _payload.isEmpty ? null : _copyPayload,
-              icon: const Icon(Icons.copy),
-              label: const Text('원문 텍스트 복사'),
+        ),
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: 0,
+          child: AnimatedPadding(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 16),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _buildPayload,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  ),
+                  child: const Text('QR 생성'),
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -239,11 +296,10 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
             controller: _urlCtrl,
             decoration: const InputDecoration(hintText: 'https://example.com'),
           ),
-          onGenerate: _buildPayload,
         );
       case GeneratorType.wifi:
         return _InputCard(
-          title: 'Wi-Fi 정보 입력',
+          title: '와이파이 정보 입력',
           child: Column(
             children: [
               TextField(controller: _wifiSsidCtrl, decoration: const InputDecoration(hintText: 'SSID')),
@@ -261,7 +317,6 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
               ),
             ],
           ),
-          onGenerate: _buildPayload,
         );
       case GeneratorType.email:
         return _InputCard(
@@ -275,47 +330,90 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
               TextField(controller: _emailBodyCtrl, decoration: const InputDecoration(hintText: '본문')),
             ],
           ),
-          onGenerate: _buildPayload,
         );
     }
   }
-}
 
-class _QuickCard extends StatelessWidget {
-  const _QuickCard({
-    required this.title,
-    required this.description,
-    required this.selected,
-    required this.onTap,
-  });
+  Widget _buildAdvancedOptions() {
+    final colors = [
+      Colors.black,
+      const Color(0xFF2EC4B6),
+      const Color(0xFF1D4ED8),
+      const Color(0xFFE11D48),
+      const Color(0xFFF59E0B),
+      const Color(0xFF0F172A),
+    ];
 
-  final String title;
-  final String description;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: selected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: selected ? colorScheme.primary : colorScheme.outlineVariant),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('고급 설정', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Text('컬러', style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          children: colors.map((color) {
+            final selected = _qrColor == color;
+            return GestureDetector(
+              onTap: () => setState(() => _qrColor = color),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected ? Colors.white : Colors.black.withOpacity(0.1),
+                    width: selected ? 3 : 1,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(height: 16),
+        Text('템플릿', style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text(description, style: Theme.of(context).textTheme.bodySmall),
+            ChoiceChip(
+              label: const Text('클래식'),
+              selected: _moduleShape == QrDataModuleShape.square,
+              onSelected: (_) => setState(() {
+                _moduleShape = QrDataModuleShape.square;
+                _eyeShape = QrEyeShape.square;
+              }),
+            ),
+            ChoiceChip(
+              label: const Text('라운드'),
+              selected: _moduleShape == QrDataModuleShape.circle,
+              onSelected: (_) => setState(() {
+                _moduleShape = QrDataModuleShape.circle;
+                _eyeShape = QrEyeShape.circle;
+              }),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 16),
+        Text('로고', style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ElevatedButton.icon(
+              onPressed: _pickLogo,
+              icon: const Icon(Icons.upload),
+              label: const Text('로고 추가'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: _logoFile == null ? null : _removeLogo,
+              child: const Text('제거'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -324,12 +422,10 @@ class _InputCard extends StatelessWidget {
   const _InputCard({
     required this.title,
     required this.child,
-    required this.onGenerate,
   });
 
   final String title;
   final Widget child;
-  final VoidCallback onGenerate;
 
   @override
   Widget build(BuildContext context) {
@@ -346,14 +442,6 @@ class _InputCard extends StatelessWidget {
           Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           child,
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton(
-              onPressed: onGenerate,
-              child: const Text('QR 생성'),
-            ),
-          ),
         ],
       ),
     );

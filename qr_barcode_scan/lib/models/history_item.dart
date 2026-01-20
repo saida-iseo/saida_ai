@@ -69,13 +69,13 @@ class HistoryItem {
       case PayloadType.url:
         return 'URL';
       case PayloadType.wifi:
-        return 'Wi-Fi';
+        return '와이파이';
       case PayloadType.email:
-        return 'EMAIL';
+        return '이메일';
       case PayloadType.text:
-        return 'TEXT';
+        return '텍스트';
       case PayloadType.unknown:
-        return 'UNKNOWN';
+        return '알 수 없음';
     }
   }
 }

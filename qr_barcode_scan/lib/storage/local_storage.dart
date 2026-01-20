@@ -57,7 +57,7 @@ class AppSettings {
     this.vibrate = true,
     this.sound = true,
     this.autoFocus = true,
-    this.autoOpenUrl = true,
+    this.autoOpenUrl = false,
   });
 
   final bool vibrate;

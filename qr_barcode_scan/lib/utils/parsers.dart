@@ -12,6 +12,15 @@ class ParsedResult {
   final Map<String, String> data;
 }
 
+String? extractDomain(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return null;
+  if (uri.host.isNotEmpty) {
+    return uri.host.replaceFirst('www.', '');
+  }
+  return null;
+}
+
 ParsedResult parsePayload(String value) {
   final trimmed = value.trim();
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_barcode_scan/models/history_item.dart';
 import 'package:qr_barcode_scan/utils/parsers.dart';
+import 'package:qr_barcode_scan/utils/url_safety.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,9 +19,10 @@ class ResultSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, 24 + bottomInset),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -29,6 +31,17 @@ class ResultSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(100),
+              ),
+            ),
+          ),
           Row(
             children: [
               Container(
@@ -71,7 +84,36 @@ class ResultSheet extends StatelessWidget {
 
     switch (result.type) {
       case PayloadType.url:
-        return Text(result.data['url'] ?? result.raw, style: textTheme.titleMedium);
+        final url = result.data['url'] ?? result.raw;
+        final domain = extractDomain(url) ?? url;
+        final safety = evaluateUrlSafety(url);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              domain,
+              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            _SafetyBadge(level: safety.level),
+            if (safety.reasons.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                safety.reasons.join(' · '),
+                style: textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+              ),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              url,
+              style: textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
       case PayloadType.text:
         return Text(result.raw, style: textTheme.titleMedium);
       case PayloadType.wifi:
@@ -103,7 +145,6 @@ class ResultSheet extends StatelessWidget {
 
   List<Widget> _buildActions(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     final actions = <Widget>[
       _ActionButton(
         label: '복사',
@@ -111,20 +152,14 @@ class ResultSheet extends StatelessWidget {
         onTap: () async {
           await Clipboard.setData(ClipboardData(text: result.raw));
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('클립보드에 복사했습니다.')),
+            const SnackBar(content: Text('클립보드에 복사했습니다.')),
           );
         },
-      ),
-      _ActionButton(
-        label: '공유',
-        icon: Icons.share,
-        onTap: () => Share.share(result.raw),
       ),
     ];
 
     if (result.type == PayloadType.url) {
-      actions.insert(
-        0,
+      actions.add(
         _ActionButton(
           label: '열기',
           icon: Icons.open_in_browser,
@@ -134,9 +169,17 @@ class ResultSheet extends StatelessWidget {
       );
     }
 
+    actions.add(
+      _ActionButton(
+        label: '공유',
+        icon: Icons.share,
+        onTap: () => Share.share(result.raw),
+      ),
+    );
+
     if (result.type == PayloadType.email && result.data['to'] != null) {
       actions.insert(
-        0,
+        1,
         _ActionButton(
           label: '메일',
           icon: Icons.email,
@@ -190,6 +233,44 @@ class _ActionButton extends StatelessWidget {
       label: Text(
         label,
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+      ),
+    );
+  }
+}
+
+class _SafetyBadge extends StatelessWidget {
+  const _SafetyBadge({required this.level});
+
+  final UrlSafetyLevel level;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    String label;
+    Color color;
+    switch (level) {
+      case UrlSafetyLevel.safe:
+        label = '안전';
+        color = colorScheme.primary;
+        break;
+      case UrlSafetyLevel.caution:
+        label = '주의';
+        color = Colors.orange;
+        break;
+      case UrlSafetyLevel.danger:
+        label = '위험';
+        color = Colors.redAccent;
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '안전도: $label',
+        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }

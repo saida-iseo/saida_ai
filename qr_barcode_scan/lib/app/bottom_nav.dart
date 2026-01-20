@@ -43,55 +43,60 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
 
     return Scaffold(
       body: SafeArea(
+        top: index != 0,
+        bottom: false,
         child: Column(
           children: [
-            const AdPlaceholder(),
+            if (index >= 2) const AdPlaceholder(),
             Expanded(child: screens[index]),
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 24,
-              offset: const Offset(0, -8),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _NavItem(
-              label: '스캔',
-              icon: Icons.qr_code_scanner,
-              selected: index == 0,
-              onTap: () => ref.read(navIndexProvider.notifier).state = 0,
-            ),
-            _NavItem(
-              label: '생성',
-              icon: Icons.add_box_rounded,
-              selected: index == 1,
-              isPrimary: true,
-              onTap: () => ref.read(navIndexProvider.notifier).state = 1,
-            ),
-            _NavItem(
-              label: '기록',
-              icon: Icons.history,
-              selected: index == 2,
-              onTap: () => ref.read(navIndexProvider.notifier).state = 2,
-            ),
-            _NavItem(
-              label: '설정',
-              icon: Icons.settings,
-              selected: index == 3,
-              onTap: () => ref.read(navIndexProvider.notifier).state = 3,
-            ),
-          ],
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, -8),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _NavItem(
+                label: '스캔',
+                icon: Icons.qr_code_scanner,
+                selected: index == 0,
+                onTap: () => ref.read(navIndexProvider.notifier).state = 0,
+              ),
+              _NavItem(
+                label: '생성',
+                icon: Icons.add_box_rounded,
+                selected: index == 1,
+                isPrimary: true,
+                onTap: () => ref.read(navIndexProvider.notifier).state = 1,
+              ),
+              _NavItem(
+                label: '기록',
+                icon: Icons.history,
+                selected: index == 2,
+                onTap: () => ref.read(navIndexProvider.notifier).state = 2,
+              ),
+              _NavItem(
+                label: '설정',
+                icon: Icons.settings,
+                selected: index == 3,
+                onTap: () => ref.read(navIndexProvider.notifier).state = 3,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -116,7 +121,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final color = selected ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.6);
+    final color = selected ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.7);
 
     return Expanded(
       child: GestureDetector(
@@ -126,7 +131,9 @@ class _NavItem extends StatelessWidget {
           duration: const Duration(milliseconds: 250),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: selected && isPrimary ? colorScheme.primary.withOpacity(0.15) : Colors.transparent,
+            color: selected
+                ? (isPrimary ? colorScheme.primary.withOpacity(0.2) : colorScheme.primary.withOpacity(0.12))
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(

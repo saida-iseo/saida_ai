@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 
 class ScanOverlay extends StatelessWidget {
-  const ScanOverlay({super.key});
+  const ScanOverlay({
+    super.key,
+    this.isBarcode = false,
+  });
+
+  final bool isBarcode;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = constraints.maxWidth * 0.68;
-        final left = (constraints.maxWidth - size) / 2;
-        final top = (constraints.maxHeight - size) / 2;
+        final width = constraints.maxWidth * (isBarcode ? 0.82 : 0.68);
+        final height = constraints.maxHeight * (isBarcode ? 0.28 : 0.68);
+        final left = (constraints.maxWidth - width) / 2;
+        final top = (constraints.maxHeight - height) / 2;
 
         return Stack(
           children: [
@@ -23,11 +29,11 @@ class ScanOverlay extends StatelessWidget {
                     left: left,
                     top: top,
                     child: Container(
-                      width: size,
-                      height: size,
+                      width: width,
+                      height: height,
                       decoration: BoxDecoration(
                         color: Colors.black,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(isBarcode ? 18 : 24),
                       ),
                     ),
                   ),
@@ -38,11 +44,11 @@ class ScanOverlay extends StatelessWidget {
               left: left,
               top: top,
               child: Container(
-                width: size,
-                height: size,
+                width: width,
+                height: height,
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFF2EC4B6), width: 3),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(isBarcode ? 18 : 24),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF2EC4B6).withOpacity(0.2),
