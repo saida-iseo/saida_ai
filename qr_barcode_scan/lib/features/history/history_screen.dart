@@ -338,6 +338,15 @@ String _extractUrl(HistoryItem item) {
 }
 
 Future<void> _openUrlWithSafety(BuildContext context, String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('지원하지 않는 링크 형식입니다.')),
+      );
+    }
+    return;
+  }
   final safety = evaluateUrlSafety(url);
   if (safety.requiresConfirm) {
     final proceed = await showDialog<bool>(
@@ -347,8 +356,10 @@ Future<void> _openUrlWithSafety(BuildContext context, String url) async {
         content: Text(
           [
             '링크를 열기 전에 확인해주세요.',
+            '도메인: ${extractDomain(url) ?? uri.host}',
             if (safety.reasons.isNotEmpty) safety.reasons.join('\n'),
             '악성 코드/피싱 위험이 있을 수 있습니다.',
+            '경고를 무시하고 “열기”를 선택한 경우 책임은 사용자에게 있습니다.',
           ].join('\n\n'),
         ),
         actions: [

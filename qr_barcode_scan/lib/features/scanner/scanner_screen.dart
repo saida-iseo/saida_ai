@@ -91,7 +91,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     await _controller.stop();
 
     if (!mounted) return;
-    if (parsed.type == PayloadType.url && settings.autoOpenUrl) {
+    var autoOpenUrl = settings.autoOpenUrl;
+    if (parsed.type == PayloadType.url && !LocalStorage.firstScanNoticeDone) {
+      final nextAutoOpen = await _showFirstScanNotice(
+        context,
+        parsed.data['url'] ?? parsed.raw,
+        settings.autoOpenUrl,
+      );
+      if (nextAutoOpen != null) {
+        await ref.read(settingsProvider.notifier).setAutoOpenUrl(nextAutoOpen);
+        autoOpenUrl = nextAutoOpen;
+      }
+      await LocalStorage.setFirstScanNoticeDone();
+    }
+    if (parsed.type == PayloadType.url && autoOpenUrl) {
       await _openUrlWithSafety(context, parsed.data['url'] ?? parsed.raw);
     }
 
@@ -177,6 +190,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   Future<void> _openUrlWithSafety(BuildContext context, String url) async {
     final settings = ref.read(settingsProvider);
+    final uri = Uri.tryParse(url);
+    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('지원하지 않는 링크 형식입니다.')),
+      );
+      return;
+    }
     if (!settings.safetyCheck) {
       await launchUrlPreferApp(url);
       return;
@@ -190,8 +211,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           content: Text(
             [
               '링크를 열기 전에 확인해주세요.',
+              '도메인: ${extractDomain(url) ?? uri.host}',
               if (safety.reasons.isNotEmpty) safety.reasons.join('\n'),
               '악성 코드/피싱 위험이 있을 수 있습니다.',
+              '경고를 무시하고 “열기”를 선택한 경우 책임은 사용자에게 있습니다.',
             ].join('\n\n'),
           ),
           actions: [
@@ -203,6 +226,68 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       if (proceed != true) return;
     }
     await launchUrlPreferApp(url);
+  }
+
+  Future<bool?> _showFirstScanNotice(
+    BuildContext context,
+    String url,
+    bool initialAutoOpen,
+  ) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    final isHttps = uri.scheme == 'https';
+    final domain = extractDomain(url) ?? uri.host;
+    final safety = evaluateUrlSafety(url);
+    bool autoOpen = initialAutoOpen;
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('링크 확인'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('도메인: $domain'),
+                  const SizedBox(height: 4),
+                  Text('HTTPS: ${isHttps ? '사용' : '미사용'}'),
+                  const SizedBox(height: 8),
+                  Text(
+                    safety.reasons.isEmpty ? '의심 신호 없음' : safety.reasons.join('\n'),
+                    style: TextStyle(
+                      color: safety.reasons.isEmpty
+                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                          : Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: autoOpen,
+                        onChanged: (value) => setStateDialog(() => autoOpen = value ?? false),
+                      ),
+                      const SizedBox(width: 6),
+                      const Expanded(child: Text('다음부터 자동 열기')),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, autoOpen),
+                  child: const Text('확인'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -292,12 +377,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     spacing: 10,
                     runSpacing: 8,
                     children: [
-                      _SettingDropdown(
+                      _SettingToggle(
                         label: 'URL 자동 열기',
                         enabled: settings.autoOpenUrl,
                         onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
                       ),
-                      _SettingDropdown(
+                      _SettingToggle(
                         label: '안전 검사',
                         enabled: settings.safetyCheck,
                         onChanged: (_) => ref.read(settingsProvider.notifier).toggleSafetyCheck(),
@@ -461,8 +546,8 @@ class _ModePill extends StatelessWidget {
   }
 }
 
-class _SettingDropdown extends StatelessWidget {
-  const _SettingDropdown({
+class _SettingToggle extends StatelessWidget {
+  const _SettingToggle({
     required this.label,
     required this.enabled,
     required this.onChanged,
@@ -474,43 +559,32 @@ class _SettingDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<bool>(
-      onSelected: onChanged,
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: true, child: Text('켜짐')),
-        PopupMenuItem(value: false, child: Text('꺼짐')),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.45),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.12)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 6),
-            Text(
-              enabled ? '켜짐' : '꺼짐',
-              style: TextStyle(
-                color: enabled ? Theme.of(context).colorScheme.primary : Colors.white70,
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Icon(Icons.expand_more, color: Colors.white70, size: 16),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          Switch.adaptive(
+            value: enabled,
+            onChanged: onChanged,
+            activeColor: Theme.of(context).colorScheme.primary,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
       ),
     );
   }

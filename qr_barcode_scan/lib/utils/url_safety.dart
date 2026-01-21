@@ -2,6 +2,19 @@ import 'dart:core';
 
 enum UrlSafetyLevel { safe, caution, danger }
 
+const List<String> _shortenerHosts = [
+  'bit.ly',
+  'tinyurl.com',
+  't.co',
+  'goo.gl',
+  'rebrand.ly',
+  'cutt.ly',
+  'is.gd',
+  's.id',
+  'tiny.cc',
+  'ow.ly',
+];
+
 class UrlSafetyResult {
   const UrlSafetyResult({
     required this.level,
@@ -29,6 +42,9 @@ UrlSafetyResult evaluateUrlSafety(String url) {
   }
 
   final host = uri.host.toLowerCase();
+  if (_shortenerHosts.contains(host)) {
+    reasons.add('단축 URL 입니다. 리다이렉트 대상을 확인하세요.');
+  }
   if (RegExp(r'^(?:\d{1,3}\.){3}\d{1,3}$').hasMatch(host)) {
     reasons.add('도메인이 IP 주소입니다.');
   }
@@ -53,4 +69,10 @@ UrlSafetyResult evaluateUrlSafety(String url) {
 
   final level = reasons.length >= 3 ? UrlSafetyLevel.danger : UrlSafetyLevel.caution;
   return UrlSafetyResult(level: level, reasons: reasons);
+}
+
+bool isShortUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  return _shortenerHosts.contains(uri.host.toLowerCase());
 }

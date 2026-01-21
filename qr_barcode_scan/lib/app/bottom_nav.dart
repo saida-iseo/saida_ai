@@ -22,12 +22,39 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
   void initState() {
     super.initState();
     _requestNotificationOnce();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showSafetyNoticeIfNeeded();
+    });
   }
 
   Future<void> _requestNotificationOnce() async {
     if (LocalStorage.onboardingDone) return;
     await Permission.notification.request();
     await LocalStorage.setOnboardingDone();
+  }
+
+  Future<void> _showSafetyNoticeIfNeeded() async {
+    if (LocalStorage.safetyNoticeDone) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('안전 안내'),
+        content: const Text(
+          'QR은 출처 확인 후 열어주세요.\n\n'
+          '이 앱은 위험 스킴을 차단하고, 도메인을 표시하며, 단축 URL은 리다이렉트 확인이 필요하다는 경고를 제공합니다.\n'
+          '그래도 경고를 무시하고 “열기”를 선택한 경우, 또는 외부 사이트/앱의 행위로 인한 피해는 앱 기능과의 직접 인과관계가 약할 수 있습니다.\n\n'
+          '의심되는 링크는 열지 말고 즉시 닫아주세요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+    await LocalStorage.setSafetyNoticeDone();
   }
 
   @override
@@ -80,7 +107,6 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
                 label: '생성',
                 icon: Icons.qr_code_2_rounded,
                 selected: index == 1,
-                isPrimary: true,
                 onTap: () => ref.read(navIndexProvider.notifier).state = 1,
               ),
               _NavItem(
@@ -109,13 +135,11 @@ class _NavItem extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
-    this.isPrimary = false,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
-  final bool isPrimary;
   final VoidCallback onTap;
 
   @override
@@ -132,7 +156,7 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: selected
-                ? (isPrimary ? colorScheme.primary.withOpacity(0.2) : colorScheme.primary.withOpacity(0.12))
+                ? colorScheme.primary.withOpacity(0.12)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
@@ -140,13 +164,13 @@ class _NavItem extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                height: isPrimary ? 44 : 36,
-                width: isPrimary ? 44 : 36,
+                height: 36,
+                width: 36,
                 decoration: BoxDecoration(
-                  color: isPrimary ? colorScheme.primary : colorScheme.surfaceVariant,
+                  color: colorScheme.surfaceVariant,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: isPrimary ? Colors.white : color, size: isPrimary ? 22 : 20),
+                child: Icon(icon, color: color, size: 20),
               ),
               const SizedBox(height: 6),
               Text(

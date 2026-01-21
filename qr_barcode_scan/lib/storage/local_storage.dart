@@ -50,6 +50,18 @@ class LocalStorage {
   static Future<void> setOnboardingDone() async {
     await _settingsBox.put('onboarding', {'done': true});
   }
+
+  static bool get safetyNoticeDone => _settingsBox.get('safetyNotice')?['done'] == true;
+
+  static Future<void> setSafetyNoticeDone() async {
+    await _settingsBox.put('safetyNotice', {'done': true});
+  }
+
+  static bool get firstScanNoticeDone => _settingsBox.get('firstScanNotice')?['done'] == true;
+
+  static Future<void> setFirstScanNoticeDone() async {
+    await _settingsBox.put('firstScanNotice', {'done': true});
+  }
 }
 
 class AppSettings {
@@ -147,6 +159,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> toggleSafetyCheck() async {
     await update(state.copyWith(safetyCheck: !state.safetyCheck));
+  }
+
+  Future<void> setAutoOpenUrl(bool value) async {
+    await update(state.copyWith(autoOpenUrl: value));
   }
 
   Future<void> setThemeMode(AppThemeMode mode) async {

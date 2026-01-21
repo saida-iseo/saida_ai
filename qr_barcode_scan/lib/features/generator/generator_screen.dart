@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -15,6 +16,7 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 enum GeneratorType { url, text, pdf, image, vcard, video, social, playlist, wifi, email }
+enum GradientDirection { diagonal, vertical, horizontal }
 
 class GeneratorScreen extends ConsumerStatefulWidget {
   const GeneratorScreen({super.key});
@@ -32,9 +34,14 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
   Color _qrForegroundColor = Colors.black;
   Color _qrBackgroundColor = Colors.white;
   bool _useGradient = false;
-  int _errorCorrection = QrErrorCorrectLevel.M;
+  GradientDirection _gradientDirection = GradientDirection.diagonal;
+  double _gradientIntensity = 0.65;
   late final PageController _typeController;
   double _typePage = 0;
+  Timer? _typeAutoScrollTimer;
+  bool _isTypeUserScrolling = false;
+  Timer? _typeUserScrollReleaseTimer;
+  Timer? _typeAutoScrollPauseTimer;
   final List<_GeneratorCategory> _categories = [
     _GeneratorCategory(
       type: GeneratorType.url,
@@ -136,10 +143,14 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
         _typePage = _typeController.page ?? _typeController.initialPage.toDouble();
       });
     });
+    _startTypeAutoScroll();
   }
 
   @override
   void dispose() {
+    _typeAutoScrollTimer?.cancel();
+    _typeUserScrollReleaseTimer?.cancel();
+    _typeAutoScrollPauseTimer?.cancel();
     _typeController.dispose();
     _urlCtrl.dispose();
     _textCtrl.dispose();
@@ -155,6 +166,26 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     _emailSubCtrl.dispose();
     _emailBodyCtrl.dispose();
     super.dispose();
+  }
+
+  void _startTypeAutoScroll() {
+    _typeAutoScrollTimer?.cancel();
+    _typeAutoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!_typeController.hasClients || _isTypeUserScrolling) return;
+      final current = _typeController.page ?? _typeController.initialPage.toDouble();
+      final next = current - 1;
+      _typeController.animateToPage(
+        next.round(),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  void _pauseAutoScroll([Duration duration = const Duration(seconds: 3)]) {
+    _isTypeUserScrolling = true;
+    _typeAutoScrollPauseTimer?.cancel();
+    _typeAutoScrollPauseTimer = Timer(duration, () => _isTypeUserScrolling = false);
   }
 
   void _buildPayload() {
@@ -361,7 +392,7 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final palette = _generatorPalette(context);
     final dataStyle = QrDataModuleStyle(
       dataModuleShape: _moduleShape,
       color: _qrForegroundColor,
@@ -373,139 +404,16 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
 
     return Stack(
       children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'QR 생성',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: SizedBox(
+                height: constraints.maxHeight,
+                child: _buildPreviewEditor(dataStyle, eyeStyle, palette),
               ),
-              const SizedBox(height: 6),
-              Text('필요한 타입을 선택하고 내용을 입력하세요.', style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 84,
-                child: PageView.builder(
-                  controller: _typeController,
-                  itemCount: 10000,
-                  physics: const BouncingScrollPhysics(),
-                  onPageChanged: (index) {
-                    final selected = _categories[index % _categories.length];
-                    setState(() {
-                      _type = selected.type;
-                      _payload = '';
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    final item = _categories[index % _categories.length];
-                    final distance = (index - _typePage).abs();
-                    final scale = (1.08 - (distance * 0.08)).clamp(0.92, 1.08);
-                    final opacity = (1 - (distance * 0.15)).clamp(0.75, 1.0);
-                    final selected = item.type == _type;
-
-                    return Opacity(
-                      opacity: opacity,
-                      child: Transform.scale(
-                        scale: scale,
-                        child: _TypeCard(
-                          item: item,
-                          selected: selected,
-                          onTap: () {
-                            _typeController.animateToPage(
-                              index,
-                              duration: const Duration(milliseconds: 220),
-                              curve: Curves.easeOutBack,
-                            );
-                            setState(() {
-                              _type = item.type;
-                              _payload = '';
-                            });
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  key: ValueKey(_type),
-                  child: _buildTypeIntro(context),
-                ),
-              ),
-              const SizedBox(height: 16),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  key: ValueKey(_type),
-                  child: _buildInputSection(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _onGeneratePressed(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    elevation: 6,
-                    shadowColor: colorScheme.primary.withOpacity(0.4),
-                  ),
-                  child: const Text('QR 생성'),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildPreviewEditor(dataStyle, eyeStyle),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _payload.isEmpty ? null : _saveQr,
-                      icon: const Icon(Icons.save_alt),
-                      label: const Text('저장'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _payload.isEmpty ? null : _shareQr,
-                      icon: const Icon(Icons.share),
-                      label: const Text('공유'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton.icon(
-                  onPressed: _payload.isEmpty ? null : _copyPayload,
-                  icon: const Icon(Icons.copy),
-                  label: const Text('원문 텍스트 복사'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ],
     );
@@ -680,9 +588,12 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     );
   }
 
-  Widget _buildPreviewEditor(QrDataModuleStyle dataStyle, QrEyeStyle eyeStyle) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final palette = [
+  Widget _buildPreviewEditor(
+    QrDataModuleStyle dataStyle,
+    QrEyeStyle eyeStyle,
+    _GeneratorPalette palette,
+  ) {
+    final colorPalette = [
       const Color(0xFF2563EB),
       const Color(0xFF0F172A),
       const Color(0xFF475569),
@@ -692,195 +603,465 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
       const Color(0xFFE0F2FE),
       const Color(0xFFFFF7ED),
     ];
-    final contrast = _contrastRatio(_qrForegroundColor, _qrBackgroundColor);
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: palette.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: palette.shadow,
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RepaintBoundary(
-            key: _qrKey,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _useGradient
-                    ? Colors.transparent
-                    : _qrBackgroundColor,
-                borderRadius: BorderRadius.circular(16),
-                gradient: _useGradient
-                    ? LinearGradient(
-                        colors: [
-                          _qrBackgroundColor,
-                          _qrBackgroundColor.withOpacity(0.7),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 860;
+          final topHeight = (constraints.maxHeight * 0.23).clamp(140.0, 180.0);
+          final bottomHeight = 58.0;
+          final spacing = 8.0;
+          final available = constraints.maxHeight - topHeight - bottomHeight - (spacing * 3);
+          final rowHeight = (available / 2).clamp(120.0, 200.0);
+          final previewMax = (rowHeight * 0.8).clamp(120.0, 190.0);
+
+          return Column(
+            children: [
+              SizedBox(
+                height: topHeight,
+                child: _buildTopControls(palette),
               ),
-              child: _payload.isEmpty
-                  ? SizedBox(
-                      height: 140,
-                      width: 140,
-                      child: Center(
-                        child: Text('입력 후 생성', style: TextStyle(color: Colors.grey[600])),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: rowHeight,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildSectionCard(
+                        palette: palette,
+                        title: '미리보기',
+                        child: _buildPreviewCard(
+                          dataStyle,
+                          eyeStyle,
+                          palette,
+                          previewMax,
+                        ),
                       ),
-                    )
-                  : QrImageView(
-                      data: _payload,
-                      size: 140,
-                      backgroundColor: _qrBackgroundColor,
-                      dataModuleStyle: dataStyle,
-                      eyeStyle: eyeStyle,
-                      errorCorrectionLevel: _errorCorrection,
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildSectionCard(
+                        palette: palette,
+                        title: '컬러 편집',
+                        child: _buildColorSection(
+                          palette: palette,
+                          colors: colorPalette,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: rowHeight,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildSectionCard(
+                        palette: palette,
+                        title: '그라데이션',
+                        child: _buildGradientSection(palette),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildSectionCard(
+                        palette: palette,
+                        title: 'QR 디자인',
+                        child: _buildDesignSection(palette),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: bottomHeight,
+                child: _buildSaveShareRow(palette),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTopControls(_GeneratorPalette palette) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 56,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollStartNotification) {
+                _isTypeUserScrolling = true;
+                _typeUserScrollReleaseTimer?.cancel();
+              } else if (notification is ScrollUpdateNotification) {
+                _isTypeUserScrolling = true;
+                _typeUserScrollReleaseTimer?.cancel();
+              } else if (notification is ScrollEndNotification) {
+                _typeUserScrollReleaseTimer?.cancel();
+                _typeUserScrollReleaseTimer = Timer(
+                  const Duration(milliseconds: 200),
+                  () => _isTypeUserScrolling = false,
+                );
+              }
+              return false;
+            },
+            child: PageView.builder(
+              controller: _typeController,
+              itemCount: 10000,
+              reverse: false,
+              physics: const BouncingScrollPhysics(),
+              onPageChanged: (index) {
+                if (!_isTypeUserScrolling) return;
+                final selected = _categories[index % _categories.length];
+                setState(() {
+                  _type = selected.type;
+                  _payload = '';
+                });
+              },
+              itemBuilder: (context, index) {
+                final item = _categories[index % _categories.length];
+                final distance = (index - _typePage).abs();
+                final scale = (1.08 - (distance * 0.08)).clamp(0.92, 1.08);
+                final opacity = (1 - (distance * 0.15)).clamp(0.75, 1.0);
+                final selected = item.type == _type;
+
+                return Opacity(
+                  opacity: opacity,
+                  child: Transform.scale(
+                    scale: scale,
+                    child: _TypeCard(
+                      item: item,
+                      selected: selected,
+                      onTap: () {
+                        _pauseAutoScroll();
+                        setState(() {
+                          _type = item.type;
+                          _payload = '';
+                        });
+                      },
+                    ),
+                  ),
+                );
+              },
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('컬러 편집', style: Theme.of(context).textTheme.labelMedium),
-                const SizedBox(height: 10),
-                _buildColorRow(
-                  title: '전경색',
-                  selected: _qrForegroundColor,
-                  palette: palette,
-                  onSelect: (color) => setState(() => _qrForegroundColor = color),
-                  onCustom: () => _openColorPicker(
-                    initial: _qrForegroundColor,
-                    onChanged: (color) => setState(() => _qrForegroundColor = color),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildColorRow(
-                  title: '배경색',
-                  selected: _qrBackgroundColor,
-                  palette: palette,
-                  onSelect: (color) => setState(() => _qrBackgroundColor = color),
-                  onCustom: () => _openColorPicker(
-                    initial: _qrBackgroundColor,
-                    onChanged: (color) => setState(() => _qrBackgroundColor = color),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 420;
+              if (isCompact) {
+                return Column(
                   children: [
-                    Text('그라데이션', style: Theme.of(context).textTheme.labelSmall),
-                    const SizedBox(width: 8),
-                    Switch.adaptive(
-                      value: _useGradient,
-                      onChanged: (value) => setState(() => _useGradient = value),
-                      activeColor: colorScheme.primary,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    Expanded(child: _buildInputCard(palette)),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _onGeneratePressed(context),
+                        style: _primaryActionStyle(palette),
+                        child: const Text('QR 생성'),
+                      ),
                     ),
                   ],
-                ),
-                if (contrast < 3.0) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDBEAFE),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, size: 16, color: colorScheme.primary),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '명암 대비가 낮습니다. 자동 보정이 필요할 수 있어요.',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.primary,
-                                ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _applyAutoContrast,
-                          child: const Text('자동 보정'),
-                        ),
-                      ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: _buildInputCard(palette)),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 108,
+                    child: ElevatedButton(
+                      onPressed: () => _onGeneratePressed(context),
+                      style: _primaryActionStyle(palette),
+                      child: const Text('QR 생성'),
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
-                Text('QR 디자인', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Text('패턴', style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('클래식'),
-                      selected: _moduleShape == QrDataModuleShape.square,
-                      onSelected: (_) => setState(() {
-                        _moduleShape = QrDataModuleShape.square;
-                        _eyeShape = QrEyeShape.square;
-                      }),
-                    ),
-                    ChoiceChip(
-                      label: const Text('라운드'),
-                      selected: _moduleShape == QrDataModuleShape.circle,
-                      onSelected: (_) => setState(() {
-                        _moduleShape = QrDataModuleShape.circle;
-                        _eyeShape = QrEyeShape.circle;
-                      }),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text('오류 수정 레벨', style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('L'),
-                      selected: _errorCorrection == QrErrorCorrectLevel.L,
-                      onSelected: (_) => setState(() => _errorCorrection = QrErrorCorrectLevel.L),
-                    ),
-                    ChoiceChip(
-                      label: const Text('M'),
-                      selected: _errorCorrection == QrErrorCorrectLevel.M,
-                      onSelected: (_) => setState(() => _errorCorrection = QrErrorCorrectLevel.M),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Q'),
-                      selected: _errorCorrection == QrErrorCorrectLevel.Q,
-                      onSelected: (_) => setState(() => _errorCorrection = QrErrorCorrectLevel.Q),
-                    ),
-                    ChoiceChip(
-                      label: const Text('H'),
-                      selected: _errorCorrection == QrErrorCorrectLevel.H,
-                      onSelected: (_) => setState(() => _errorCorrection = QrErrorCorrectLevel.H),
-                    ),
-                  ],
-                ),
-              ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputCard(_GeneratorPalette palette) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.border),
+      ),
+      child: _buildCompactInputSection(palette),
+    );
+  }
+
+  Widget _buildCompactInputSection(_GeneratorPalette palette) {
+    final decoration = _compactInputDecoration();
+    switch (_type) {
+      case GeneratorType.url:
+      case GeneratorType.pdf:
+      case GeneratorType.image:
+      case GeneratorType.video:
+      case GeneratorType.social:
+      case GeneratorType.playlist:
+        return TextField(
+          controller: _urlCtrl,
+          decoration: decoration.copyWith(hintText: _urlHintForType()),
+        );
+      case GeneratorType.text:
+        return TextField(
+          controller: _textCtrl,
+          maxLines: 2,
+          decoration: decoration.copyWith(hintText: '내용을 입력하세요.'),
+        );
+      case GeneratorType.vcard:
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 420;
+            return isCompact
+                ? Column(
+                    children: [
+                      TextField(
+                        controller: _vNameCtrl,
+                        decoration: decoration.copyWith(hintText: '이름'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _vPhoneCtrl,
+                        decoration: decoration.copyWith(hintText: '전화번호'),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton(
+                          onPressed: () => _openDetailSheet(context),
+                          style: _secondaryActionStyle(palette),
+                          child: const Text('상세'),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _vNameCtrl,
+                          decoration: decoration.copyWith(hintText: '이름'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _vPhoneCtrl,
+                          decoration: decoration.copyWith(hintText: '전화번호'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () => _openDetailSheet(context),
+                        style: _secondaryActionStyle(palette),
+                        child: const Text('상세'),
+                      ),
+                    ],
+                  );
+          },
+        );
+      case GeneratorType.wifi:
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 420;
+            return isCompact
+                ? Column(
+                    children: [
+                      TextField(
+                        controller: _wifiSsidCtrl,
+                        decoration: decoration.copyWith(hintText: 'SSID'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _wifiPassCtrl,
+                        decoration: decoration.copyWith(hintText: '암호'),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton(
+                          onPressed: () => _openDetailSheet(context),
+                          style: _secondaryActionStyle(palette),
+                          child: const Text('상세'),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _wifiSsidCtrl,
+                          decoration: decoration.copyWith(hintText: 'SSID'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _wifiPassCtrl,
+                          decoration: decoration.copyWith(hintText: '암호'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () => _openDetailSheet(context),
+                        style: _secondaryActionStyle(palette),
+                        child: const Text('상세'),
+                      ),
+                    ],
+                  );
+          },
+        );
+      case GeneratorType.email:
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 420;
+            return isCompact
+                ? Column(
+                    children: [
+                      TextField(
+                        controller: _emailToCtrl,
+                        decoration: decoration.copyWith(hintText: '받는 사람'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _emailSubCtrl,
+                        decoration: decoration.copyWith(hintText: '제목'),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton(
+                          onPressed: () => _openDetailSheet(context),
+                          style: _secondaryActionStyle(palette),
+                          child: const Text('상세'),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _emailToCtrl,
+                          decoration: decoration.copyWith(hintText: '받는 사람'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _emailSubCtrl,
+                          decoration: decoration.copyWith(hintText: '제목'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () => _openDetailSheet(context),
+                        style: _secondaryActionStyle(palette),
+                        child: const Text('상세'),
+                      ),
+                    ],
+                  );
+          },
+        );
+    }
+  }
+
+  InputDecoration _compactInputDecoration() {
+    return const InputDecoration(
+      isDense: true,
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      border: OutlineInputBorder(borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderSide: BorderSide.none),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required _GeneratorPalette palette,
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: palette.primaryText,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveShareRow(_GeneratorPalette palette) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _payload.isEmpty ? null : _saveQr,
+              icon: const Icon(Icons.save_alt),
+              label: const Text('저장'),
+              style: _primaryActionStyle(palette),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _payload.isEmpty ? null : _shareQr,
+              icon: const Icon(Icons.share),
+              label: const Text('공유'),
+              style: _secondaryActionStyle(palette),
             ),
           ),
         ],
@@ -888,58 +1069,247 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     );
   }
 
+  Widget _buildPreviewCard(
+    QrDataModuleStyle dataStyle,
+    QrEyeStyle eyeStyle,
+    _GeneratorPalette palette,
+    double maxPreviewSize,
+  ) {
+    final gradient = _useGradient
+        ? LinearGradient(
+            colors: [
+              _qrBackgroundColor,
+              _qrBackgroundColor.withOpacity(_gradientIntensity),
+            ],
+            begin: _gradientBegin(),
+            end: _gradientEnd(),
+          )
+        : null;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final upperBound = maxPreviewSize < 110.0 ? 110.0 : maxPreviewSize;
+        final size = constraints.maxWidth.clamp(110.0, 200.0).clamp(110.0, upperBound);
+        final qrBox = RepaintBoundary(
+          key: _qrKey,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _useGradient ? Colors.transparent : _qrBackgroundColor,
+              borderRadius: BorderRadius.circular(20),
+              gradient: gradient,
+              border: Border.all(color: palette.border),
+              boxShadow: [
+                BoxShadow(
+                  color: palette.shadow,
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: _payload.isEmpty
+                ? SizedBox(
+                    height: size,
+                    width: size,
+                    child: Center(
+                      child: Text(
+                        '입력 후 생성',
+                        style: TextStyle(color: palette.mutedText, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  )
+                : QrImageView(
+                    data: _payload,
+                    size: size,
+                    backgroundColor: _useGradient ? Colors.transparent : _qrBackgroundColor,
+                    dataModuleStyle: dataStyle,
+                    eyeStyle: eyeStyle,
+                  ),
+          ),
+        );
+
+        return Center(child: qrBox);
+      },
+    );
+  }
+
+  Widget _buildColorSection({
+    required _GeneratorPalette palette,
+    required List<Color> colors,
+  }) {
+    final labelStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: palette.secondaryText,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildColorRow(
+          title: 'QR 색상',
+          selected: _qrForegroundColor,
+          palette: colors,
+          labelStyle: labelStyle,
+          paletteTokens: palette,
+          onSelect: (color) => setState(() => _qrForegroundColor = color),
+          onCustom: () => _openColorPicker(
+            initial: _qrForegroundColor,
+            onChanged: (color) => setState(() => _qrForegroundColor = color),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildColorRow(
+          title: '배경색',
+          selected: _qrBackgroundColor,
+          palette: colors,
+          labelStyle: labelStyle,
+          paletteTokens: palette,
+          onSelect: (color) => setState(() => _qrBackgroundColor = color),
+          onCustom: () => _openColorPicker(
+            initial: _qrBackgroundColor,
+            onChanged: (color) => setState(() => _qrBackgroundColor = color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGradientSection(_GeneratorPalette palette) {
+    final labelStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: palette.secondaryText,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('기본 OFF', style: labelStyle),
+            const SizedBox(width: 8),
+            Switch.adaptive(
+              value: _useGradient,
+              onChanged: (value) => setState(() => _useGradient = value),
+              activeColor: palette.primary,
+              activeTrackColor: palette.primary.withOpacity(0.3),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            const Spacer(),
+            IconButton(
+              onPressed: _useGradient ? () => _openGradientSheet(context, palette) : null,
+              icon: const Icon(Icons.tune, size: 18),
+              tooltip: '그라데이션 옵션',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesignSection(_GeneratorPalette palette) {
+    final labelStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: palette.secondaryText,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('패턴', style: labelStyle),
+        const SizedBox(height: 6),
+        _buildSegmentedRow<QrDataModuleShape>(
+          palette: palette,
+          options: const [
+            _SegmentOption(value: QrDataModuleShape.square, label: '클래식'),
+            _SegmentOption(value: QrDataModuleShape.circle, label: '라운드'),
+          ],
+          selected: _moduleShape,
+          onSelected: (value) => setState(() {
+            _moduleShape = value;
+            _eyeShape = value == QrDataModuleShape.circle ? QrEyeShape.circle : QrEyeShape.square;
+          }),
+        ),
+      ],
+    );
+  }
+
   Widget _buildColorRow({
     required String title,
     required Color selected,
     required List<Color> palette,
+    required TextStyle labelStyle,
+    required _GeneratorPalette paletteTokens,
     required ValueChanged<Color> onSelect,
     required VoidCallback onCustom,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.labelSmall),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: [
-            ...palette.map((color) {
-              final isSelected = selected.value == color.value;
-              return GestureDetector(
-                onTap: () => onSelect(color),
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected ? Colors.white : Colors.black.withOpacity(0.12),
-                      width: isSelected ? 3 : 1,
-                    ),
-                    boxShadow: [
-                      if (isSelected)
-                        BoxShadow(
-                          color: color.withOpacity(0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+            SizedBox(
+              width: 62,
+              child: Text(title, style: labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final color in palette)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _ColorDot(
+                          color: color,
+                          selected: selected.value == color.value,
+                          palette: paletteTokens,
+                          onTap: () => onSelect(color),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
-              );
-            }),
+              ),
+            ),
+            const SizedBox(width: 8),
             OutlinedButton(
               onPressed: onCustom,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ).copyWith(
+                side: MaterialStateProperty.all(
+                  BorderSide(color: paletteTokens.border),
+                ),
+                foregroundColor: MaterialStateProperty.all(paletteTokens.primaryText),
+                backgroundColor: MaterialStateProperty.all(paletteTokens.surfaceAlt),
               ),
               child: const Text('커스텀'),
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _buildSegmentedRow<T>({
+    required _GeneratorPalette palette,
+    required List<_SegmentOption<T>> options,
+    required T selected,
+    required ValueChanged<T> onSelected,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final option in options)
+          _SegmentedButton<T>(
+            option: option,
+            selected: option.value == selected,
+            palette: palette,
+            onSelected: onSelected,
+          ),
       ],
     );
   }
@@ -1008,22 +1378,328 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     );
   }
 
-  double _contrastRatio(Color foreground, Color background) {
-    final fg = foreground.computeLuminance();
-    final bg = background.computeLuminance();
-    final lighter = fg > bg ? fg : bg;
-    final darker = fg > bg ? bg : fg;
-    return (lighter + 0.05) / (darker + 0.05);
+  Future<void> _openGradientSheet(BuildContext context, _GeneratorPalette palette) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: palette.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('그라데이션 옵션', style: TextStyle(fontWeight: FontWeight.w600, color: palette.primaryText)),
+              const SizedBox(height: 12),
+              Text('방향', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: palette.secondaryText)),
+              const SizedBox(height: 6),
+              _buildSegmentedRow<GradientDirection>(
+                palette: palette,
+                options: const [
+                  _SegmentOption(value: GradientDirection.diagonal, label: '대각선'),
+                  _SegmentOption(value: GradientDirection.vertical, label: '수직'),
+                  _SegmentOption(value: GradientDirection.horizontal, label: '수평'),
+                ],
+                selected: _gradientDirection,
+                onSelected: (value) => setState(() => _gradientDirection = value),
+              ),
+              const SizedBox(height: 12),
+              Text('강도', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: palette.secondaryText)),
+              const SizedBox(height: 6),
+              _buildSegmentedRow<double>(
+                palette: palette,
+                options: const [
+                  _SegmentOption(value: 0.45, label: '소프트'),
+                  _SegmentOption(value: 0.65, label: '기본'),
+                  _SegmentOption(value: 0.82, label: '강한'),
+                ],
+                selected: _gradientIntensity,
+                onSelected: (value) => setState(() => _gradientIntensity = value),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  void _applyAutoContrast() {
-    setState(() {
-      _qrForegroundColor = const Color(0xFF0F172A);
-      _qrBackgroundColor = Colors.white;
-      _useGradient = false;
-    });
+  Future<void> _openDetailSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 24 + MediaQuery.of(context).viewInsets.bottom),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '상세 입력',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Container(
+                      key: ValueKey(_type),
+                      child: _buildInputSection(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('닫기'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
+  Alignment _gradientBegin() {
+    switch (_gradientDirection) {
+      case GradientDirection.vertical:
+        return Alignment.topCenter;
+      case GradientDirection.horizontal:
+        return Alignment.centerLeft;
+      case GradientDirection.diagonal:
+        return Alignment.topLeft;
+    }
+  }
+
+  Alignment _gradientEnd() {
+    switch (_gradientDirection) {
+      case GradientDirection.vertical:
+        return Alignment.bottomCenter;
+      case GradientDirection.horizontal:
+        return Alignment.centerRight;
+      case GradientDirection.diagonal:
+        return Alignment.bottomRight;
+    }
+  }
+
+  ButtonStyle _primaryActionStyle(_GeneratorPalette palette) {
+    return ElevatedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ).copyWith(
+      backgroundColor: MaterialStateProperty.resolveWith(
+        (states) => states.contains(MaterialState.disabled)
+            ? palette.primary.withOpacity(0.4)
+            : palette.primary,
+      ),
+      foregroundColor: MaterialStateProperty.resolveWith(
+        (states) => states.contains(MaterialState.disabled)
+            ? palette.primaryText.withOpacity(0.75)
+            : Colors.white,
+      ),
+      elevation: MaterialStateProperty.resolveWith(
+        (states) => states.contains(MaterialState.disabled) ? 0 : 2,
+      ),
+      shadowColor: MaterialStateProperty.all(palette.primary.withOpacity(0.4)),
+    );
+  }
+
+  ButtonStyle _secondaryActionStyle(_GeneratorPalette palette) {
+    return OutlinedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ).copyWith(
+      side: MaterialStateProperty.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(MaterialState.disabled)
+              ? palette.border.withOpacity(0.6)
+              : palette.border,
+        ),
+      ),
+      foregroundColor: MaterialStateProperty.resolveWith(
+        (states) => states.contains(MaterialState.disabled)
+            ? palette.secondaryText.withOpacity(0.7)
+            : palette.primaryText,
+      ),
+      backgroundColor: MaterialStateProperty.resolveWith(
+        (states) => states.contains(MaterialState.disabled)
+            ? palette.surfaceAlt
+            : palette.surfaceAlt.withOpacity(0.6),
+      ),
+    );
+  }
+
+  _GeneratorPalette _generatorPalette(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (Theme.of(context).brightness == Brightness.dark) {
+      return const _GeneratorPalette(
+        background: Color(0xFF0B1220),
+        surface: Color(0xFF111B2E),
+        surfaceAlt: Color(0xFF0F1A2D),
+        primaryText: Color(0xFFEAF2FF),
+        secondaryText: Color(0xFFA9B8D0),
+        mutedText: Color(0xFF6B7C99),
+        border: Color(0x14FFFFFF),
+        primary: Color(0xFF2563EB),
+        shadow: Color(0x33000000),
+        warningBackground: Color(0x1F2563EB),
+      );
+    }
+    return _GeneratorPalette(
+      background: colorScheme.background,
+      surface: colorScheme.surface,
+      surfaceAlt: colorScheme.surfaceVariant,
+      primaryText: colorScheme.onSurface,
+      secondaryText: const Color(0xFF475569),
+      mutedText: const Color(0xFF64748B),
+      border: colorScheme.outlineVariant,
+      primary: colorScheme.primary,
+      shadow: Colors.black.withOpacity(0.08),
+      warningBackground: const Color(0xFFDBEAFE),
+    );
+  }
+}
+
+class _SegmentOption<T> {
+  const _SegmentOption({
+    required this.value,
+    required this.label,
+  });
+
+  final T value;
+  final String label;
+}
+
+class _SegmentedButton<T> extends StatelessWidget {
+  const _SegmentedButton({
+    required this.option,
+    required this.selected,
+    required this.palette,
+    required this.onSelected,
+  });
+
+  final _SegmentOption<T> option;
+  final bool selected;
+  final _GeneratorPalette palette;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = selected ? palette.primary.withOpacity(0.2) : palette.surfaceAlt;
+    final borderColor = selected ? palette.primary : palette.border;
+    final textColor = selected ? Colors.white : palette.secondaryText;
+
+    return InkWell(
+      onTap: () => onSelected(option.value),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+        ),
+        child: Text(
+          option.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: textColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ColorDot extends StatelessWidget {
+  const _ColorDot({
+    required this.color,
+    required this.selected,
+    required this.palette,
+    required this.onTap,
+  });
+
+  final Color color;
+  final bool selected;
+  final _GeneratorPalette palette;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final checkColor = color.computeLuminance() > 0.6 ? Colors.black : Colors.white;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? palette.primary : palette.border,
+            width: selected ? 2.5 : 1,
+          ),
+          boxShadow: [
+            if (selected)
+              BoxShadow(
+                color: palette.primary.withOpacity(0.35),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+          ],
+        ),
+        child: selected
+            ? Icon(Icons.check, size: 16, color: checkColor)
+            : null,
+      ),
+    );
+  }
+}
+
+class _GeneratorPalette {
+  const _GeneratorPalette({
+    required this.background,
+    required this.surface,
+    required this.surfaceAlt,
+    required this.primaryText,
+    required this.secondaryText,
+    required this.mutedText,
+    required this.border,
+    required this.primary,
+    required this.shadow,
+    required this.warningBackground,
+  });
+
+  final Color background;
+  final Color surface;
+  final Color surfaceAlt;
+  final Color primaryText;
+  final Color secondaryText;
+  final Color mutedText;
+  final Color border;
+  final Color primary;
+  final Color shadow;
+  final Color warningBackground;
 }
 
 class _ColorSlider extends StatelessWidget {
@@ -1117,23 +1793,23 @@ class _TypeCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: borderColor),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _IconBadge(icon: item.icon, color: item.badgeColor, selected: selected),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               item.label,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
                 color: colorScheme.onSurface,
               ),
               maxLines: 1,
@@ -1161,7 +1837,7 @@ class _IconBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(14),
@@ -1170,7 +1846,7 @@ class _IconBadge extends StatelessWidget {
           width: 1,
         ),
       ),
-      child: Icon(icon, size: 18, color: colorScheme.primary),
+      child: Icon(icon, size: 14, color: colorScheme.primary),
     );
   }
 }
