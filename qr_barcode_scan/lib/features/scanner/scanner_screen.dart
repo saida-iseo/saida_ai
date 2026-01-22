@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -309,28 +308,32 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               ? LayoutBuilder(
                   builder: (context, constraints) {
                     final safe = MediaQuery.of(context).padding;
-                    const topCardHeight = 138.0;
-                    const topCardGap = 18.0;
-                    const bottomBarHeight = 64.0;
-                    const bottomBarGap = 18.0;
-                    const bottomPadding = 16.0;
-                    final topCardTop = safe.top + 12;
-                    final scanTop = topCardTop + topCardHeight + topCardGap;
-                    final bottomBarMaxTop = constraints.maxHeight - bottomBarHeight - bottomPadding - safe.bottom;
-                    final scanBottomLimit = bottomBarMaxTop - bottomBarGap;
-                    final scanSize = math.min(
-                      constraints.maxWidth * 0.72,
-                      (scanBottomLimit - scanTop).clamp(0.0, constraints.maxHeight),
-                    );
+                    final compact = constraints.maxHeight < 680;
+                    final titleHeight = compact ? 28.0 : 32.0;
+                    final topPadding = safe.top + 12;
+                    final topGap = 12.0;
+                    final toggleHeight = compact ? 36.0 : 40.0;
+                    final barHeight = compact ? 52.0 : 56.0;
+                    final barGap = compact ? 12.0 : 16.0;
+                    final bottomPadding = 16.0 + safe.bottom;
+                    final topReserved = topPadding + titleHeight + topGap;
+                    final bottomReserved = toggleHeight + barGap + barHeight + bottomPadding;
+                    final availableHeight = (constraints.maxHeight - topReserved - bottomReserved)
+                        .clamp(180.0, constraints.maxHeight);
+                    final scanSize = math.min(constraints.maxWidth * 0.74, availableHeight);
                     final scanWindow = Rect.fromLTWH(
                       (constraints.maxWidth - scanSize) / 2,
-                      scanTop,
+                      topReserved + (availableHeight - scanSize) / 2,
                       scanSize,
                       scanSize,
                     );
-                    final bottomBarTop = (scanWindow.bottom + bottomBarGap).clamp(
-                      0.0,
-                      bottomBarMaxTop,
+                    final toggleTop = (scanWindow.bottom + 12).clamp(
+                      topReserved,
+                      constraints.maxHeight - bottomReserved,
+                    );
+                    final barTop = (toggleTop + toggleHeight + barGap).clamp(
+                      topReserved,
+                      constraints.maxHeight - barHeight - bottomPadding,
                     );
 
                     return Stack(
@@ -352,66 +355,38 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         ),
                         ScanOverlay(
                           scanWindow: scanWindow,
-                          label: _isBarcodeMode ? '이 곳에 바코드를 위치시켜 주세요' : '이 곳에 QR 코드를 위치시켜 주세요',
+                          label: '이 곳에 QR 코드를 위치시켜주세요',
                         ),
                         Positioned(
                           left: 16,
                           right: 16,
-                          top: topCardTop,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(22),
-                            child: BackdropFilter(
-                              filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.45),
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(color: Colors.white.withOpacity(0.12)),
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    AnimatedSwitcher(
-                                      duration: const Duration(milliseconds: 180),
-                                      switchInCurve: Curves.easeOut,
-                                      switchOutCurve: Curves.easeIn,
-                                      transitionBuilder: (child, animation) {
-                                        final offsetTween = Tween<Offset>(
-                                          begin: const Offset(0, 0.08),
-                                          end: Offset.zero,
-                                        );
-                                        return FadeTransition(
-                                          opacity: animation,
-                                          child: SlideTransition(position: animation.drive(offsetTween), child: child),
-                                        );
-                                      },
-                                      child: Text(
-                                        _isBarcodeMode ? '바코드 스캔' : 'QR 스캔',
-                                        key: ValueKey(_isBarcodeMode),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _ModeSegmented(
-                                      isBarcode: _isBarcodeMode,
-                                      onChanged: (value) => setState(() => _isBarcodeMode = value),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _SettingToggleRow(
-                                      label: 'URL 자동 열기',
-                                      enabled: settings.autoOpenUrl,
-                                      onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
-                                    ),
-                                  ],
-                                ),
+                          top: topPadding,
+                          child: Text(
+                            'QR 스캔',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: compact ? 22 : 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          top: toggleTop,
+                          child: SizedBox(
+                            height: toggleHeight,
+                            child: _SettingToggleRow(
+                              label: 'URL 자동 열기',
+                              enabled: settings.autoOpenUrl,
+                              onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
+                              textStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: compact ? 12 : 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -419,39 +394,34 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Positioned(
                           left: 16,
                           right: 16,
-                          top: bottomBarTop,
+                          top: barTop,
                           child: SafeArea(
                             top: false,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: BackdropFilter(
-                                filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                child: Container(
-                                  height: bottomBarHeight,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(24),
-                                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                            child: Container(
+                              height: barHeight,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Row(
+                                children: [
+                                  _ScanControlButton(
+                                    icon: Icons.photo_library_outlined,
+                                    label: '앨범',
+                                    fontSize: compact ? 12 : 13,
+                                    onTap: _pickFromGallery,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      _ScanControlButton(
-                                        icon: Icons.photo_library_outlined,
-                                        label: '앨범',
-                                        onTap: _pickFromGallery,
-                                      ),
-                                      _ScanControlButton(
-                                        icon: _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
-                                        label: '플래시',
-                                        onTap: () async {
-                                          await _controller.toggleTorch();
-                                          setState(() {});
-                                        },
-                                      ),
-                                    ],
+                                  _ScanControlButton(
+                                    icon: _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
+                                    label: '플래시',
+                                    fontSize: compact ? 12 : 13,
+                                    onTap: () async {
+                                      await _controller.toggleTorch();
+                                      setState(() {});
+                                    },
                                   ),
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -472,11 +442,13 @@ class _ScanControlButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.fontSize = 13,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -493,7 +465,7 @@ class _ScanControlButton extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 label,
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                style: TextStyle(color: Colors.white, fontSize: fontSize, fontWeight: FontWeight.w600),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -586,25 +558,20 @@ class _SettingToggleRow extends StatelessWidget {
     required this.label,
     required this.enabled,
     required this.onChanged,
+    required this.textStyle,
   });
 
   final String label;
   final bool enabled;
   final ValueChanged<bool> onChanged;
+  final TextStyle textStyle;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.85),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(label, style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(width: 8),
         Switch.adaptive(
           value: enabled,
