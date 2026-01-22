@@ -313,6 +313,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     final compact = constraints.maxHeight < 680;
                     final titleHeight = compact ? 28.0 : 32.0;
                     final topPadding = safe.top + 12;
+                    const titleExtraOffset = 56.0; // 약 2cm 정도 더 내려서 표시
                     final topGap = 12.0;
                     final toggleGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
                     final toggleBaseHeight = (compact ? 36.0 : 40.0) + toggleGrowth;
@@ -320,21 +321,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     final barMinHeight = compact ? 52.0 : 56.0;
                     final barGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
                     final barReservedHeight = barMinHeight + barGrowth;
-                    final barGap = compact ? 12.0 : 16.0;
+                    final barGap = compact ? 26.0 : 32.0; // 추가 여유 간격으로 토글과 하단 컨트롤 분리
                     final extraBottomGap = compact ? 8.0 : 12.0;
                     final bottomInset = safe.bottom + extraBottomGap;
                     final topReserved = topPadding + titleHeight + topGap;
                     final bottomReserved = toggleHeight + barGap + barReservedHeight + bottomInset;
-                    final availableHeight = (constraints.maxHeight - topReserved - bottomReserved)
-                        .clamp(0.0, constraints.maxHeight);
-                    final scanSize = math.min(constraints.maxWidth * 0.74, availableHeight);
+                    final scanSize = math.min(constraints.maxWidth * 0.72, constraints.maxHeight * 0.72);
                     final scanWindow = Rect.fromLTWH(
                       (constraints.maxWidth - scanSize) / 2,
-                      topReserved + (availableHeight - scanSize) / 2,
+                      (constraints.maxHeight - scanSize) / 2,
                       scanSize,
                       scanSize,
                     );
-                    final toggleBottom = bottomInset + barReservedHeight + barGap;
+                    final bottomBarTop = constraints.maxHeight - bottomInset - barReservedHeight;
+                    final toggleTop = math.max(
+                      scanWindow.bottom + 8,
+                      scanWindow.bottom + (bottomBarTop - scanWindow.bottom - toggleHeight) / 2,
+                    );
 
                     return Stack(
                       fit: StackFit.expand,
@@ -360,7 +363,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Positioned(
                           left: 16,
                           right: 16,
-                          top: topPadding,
+                          top: topPadding + titleExtraOffset,
                           child: Text(
                             'QR 스캔',
                             style: TextStyle(
@@ -376,7 +379,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Positioned(
                           left: 16,
                           right: 16,
-                          bottom: toggleBottom,
+                          top: toggleTop,
                           child: ConstrainedBox(
                             constraints: BoxConstraints(minHeight: toggleHeight),
                             child: _SettingToggleRow(
