@@ -26,6 +26,9 @@ ParsedResult parsePayload(String value) {
 
   final url = _parseUrl(trimmed);
   if (url != null) {
+    if (_isPdfUrl(url)) {
+      return ParsedResult(type: PayloadType.pdf, raw: trimmed, data: {'url': url, 'label': 'PDF'});
+    }
     return ParsedResult(type: PayloadType.url, raw: trimmed, data: {'url': url});
   }
 
@@ -49,6 +52,14 @@ String? _parseUrl(String value) {
     return uri.toString();
   }
   return null;
+}
+
+bool _isPdfUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  final path = uri.path.toLowerCase();
+  if (path.endsWith('.pdf')) return true;
+  return url.toLowerCase().contains('.pdf');
 }
 
 Map<String, String> _parseWifi(String value) {

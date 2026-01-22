@@ -92,7 +92,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     if (!mounted) return;
     var autoOpenUrl = settings.autoOpenUrl;
-    if (parsed.type == PayloadType.url && !LocalStorage.firstScanNoticeDone) {
+    final isOpenableUrl = parsed.type == PayloadType.url || parsed.type == PayloadType.pdf;
+    if (isOpenableUrl && !LocalStorage.firstScanNoticeDone) {
       final nextAutoOpen = await _showFirstScanNotice(
         context,
         parsed.data['url'] ?? parsed.raw,
@@ -104,7 +105,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       }
       await LocalStorage.setFirstScanNoticeDone();
     }
-    if (parsed.type == PayloadType.url && autoOpenUrl) {
+    if (isOpenableUrl && autoOpenUrl) {
       await _openUrlWithSafety(context, parsed.data['url'] ?? parsed.raw);
     }
 
@@ -308,18 +309,22 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               ? LayoutBuilder(
                   builder: (context, constraints) {
                     final safe = MediaQuery.of(context).padding;
+                    final textScale = MediaQuery.textScaleFactorOf(context);
                     final compact = constraints.maxHeight < 680;
                     final titleHeight = compact ? 28.0 : 32.0;
                     final topPadding = safe.top + 12;
                     final topGap = 12.0;
                     final toggleHeight = compact ? 36.0 : 40.0;
-                    final barHeight = compact ? 52.0 : 56.0;
+                    final barMinHeight = compact ? 52.0 : 56.0;
+                    final barGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
+                    final barReservedHeight = barMinHeight + barGrowth;
                     final barGap = compact ? 12.0 : 16.0;
-                    final bottomPadding = 16.0 + safe.bottom;
+                    final extraBottomGap = compact ? 8.0 : 12.0;
+                    final bottomInset = safe.bottom + extraBottomGap;
                     final topReserved = topPadding + titleHeight + topGap;
-                    final bottomReserved = toggleHeight + barGap + barHeight + bottomPadding;
+                    final bottomReserved = toggleHeight + barGap + barReservedHeight + bottomInset;
                     final availableHeight = (constraints.maxHeight - topReserved - bottomReserved)
-                        .clamp(180.0, constraints.maxHeight);
+                        .clamp(0.0, constraints.maxHeight);
                     final scanSize = math.min(constraints.maxWidth * 0.74, availableHeight);
                     final scanWindow = Rect.fromLTWH(
                       (constraints.maxWidth - scanSize) / 2,
@@ -327,14 +332,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       scanSize,
                       scanSize,
                     );
-                    final toggleTop = (scanWindow.bottom + 12).clamp(
-                      topReserved,
-                      constraints.maxHeight - bottomReserved,
-                    );
-                    final barTop = (toggleTop + toggleHeight + barGap).clamp(
-                      topReserved,
-                      constraints.maxHeight - barHeight - bottomPadding,
-                    );
+                    final toggleBottom = bottomInset + barReservedHeight + barGap;
 
                     return Stack(
                       fit: StackFit.expand,
@@ -376,11 +374,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Positioned(
                           left: 16,
                           right: 16,
-                          top: toggleTop,
+                          bottom: toggleBottom,
                           child: SizedBox(
                             height: toggleHeight,
                             child: _SettingToggleRow(
-                              label: 'URL 자동 열기',
+                              label: 'URL/PDF 자동 열기',
                               enabled: settings.autoOpenUrl,
                               onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
                               textStyle: TextStyle(
@@ -394,11 +392,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Positioned(
                           left: 16,
                           right: 16,
-                          top: barTop,
+                          bottom: extraBottomGap,
                           child: SafeArea(
                             top: false,
                             child: Container(
-                              height: barHeight,
+                              constraints: BoxConstraints(minHeight: barMinHeight),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.5),
@@ -410,12 +408,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                                     icon: Icons.photo_library_outlined,
                                     label: '앨범',
                                     fontSize: compact ? 12 : 13,
+                                    verticalPadding: compact ? 6 : 8,
                                     onTap: _pickFromGallery,
                                   ),
                                   _ScanControlButton(
                                     icon: _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
                                     label: '플래시',
                                     fontSize: compact ? 12 : 13,
+                                    verticalPadding: compact ? 6 : 8,
                                     onTap: () async {
                                       await _controller.toggleTorch();
                                       setState(() {});
@@ -443,12 +443,14 @@ class _ScanControlButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.fontSize = 13,
+    this.verticalPadding = 8,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final double fontSize;
+  final double verticalPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -457,7 +459,7 @@ class _ScanControlButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(vertical: verticalPadding),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
