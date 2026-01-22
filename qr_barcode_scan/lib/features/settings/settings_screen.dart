@@ -13,9 +13,9 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final titleStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12, fontWeight: FontWeight.w600);
-    final subtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
-    const tilePadding = EdgeInsets.symmetric(horizontal: 12, vertical: 2);
+    final titleStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600);
+    final subtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12);
+    const tilePadding = EdgeInsets.symmetric(horizontal: 12, vertical: 6);
 
     return ListView(
       padding: EdgeInsets.fromLTRB(20, 10, 20, 20 + bottomInset),

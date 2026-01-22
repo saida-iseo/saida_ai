@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -334,6 +332,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           scanWindow: scanWindow,
                           label: _isBarcodeMode ? '이 곳에 바코드를 위치시켜 주세요' : '이 곳에 QR 코드를 위치시켜 주세요',
                         ),
+                        Positioned(
+                          top: (scanWindow.top - 52).clamp(8.0, constraints.maxHeight),
+                          right: (constraints.maxWidth - scanWindow.right + 8).clamp(8.0, constraints.maxWidth),
+                          child: _SettingToggle(
+                            label: 'URL 자동 열기',
+                            enabled: settings.autoOpenUrl,
+                            onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -346,16 +353,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           right: 0,
           child: SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, animation) {
+                        final offsetTween = Tween<Offset>(
+                          begin: const Offset(0, 0.08),
+                          end: Offset.zero,
+                        );
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(position: animation.drive(offsetTween), child: child),
+                        );
+                      },
+                      child: Text(
                         _isBarcodeMode ? '바코드 스캔' : 'QR 스캔',
+                        key: ValueKey(_isBarcodeMode),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 26,
@@ -365,35 +384,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 10),
-                      _ModeSegmented(
-                        isBarcode: _isBarcodeMode,
-                        onChanged: (value) => setState(() => _isBarcodeMode = value),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: [
-                      _SettingToggle(
-                        label: 'URL 자동 열기',
-                        enabled: settings.autoOpenUrl,
-                        onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
-                      ),
-                      _SettingToggle(
-                        label: '안전 검사',
-                        enabled: settings.safetyCheck,
-                        onChanged: (_) => ref.read(settingsProvider.notifier).toggleSafetyCheck(),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 10),
+                    _ModeSegmented(
+                      isBarcode: _isBarcodeMode,
+                      onChanged: (value) => setState(() => _isBarcodeMode = value),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         if (_permissionGranted)
           Positioned(
             left: 16,
@@ -527,7 +528,8 @@ class _ModePill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? Colors.white : Colors.transparent,

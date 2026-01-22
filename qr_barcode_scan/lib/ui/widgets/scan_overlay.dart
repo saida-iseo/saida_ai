@@ -5,10 +5,14 @@ class ScanOverlay extends StatelessWidget {
     super.key,
     required this.scanWindow,
     required this.label,
+    this.topRight,
+    this.topRightPadding = const EdgeInsets.all(12),
   });
 
   final Rect scanWindow;
   final String label;
+  final Widget? topRight;
+  final EdgeInsets topRightPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +58,14 @@ class ScanOverlay extends StatelessWidget {
           rect: scanWindow,
           child: Stack(
             children: [
+              if (topRight != null)
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: topRightPadding,
+                    child: topRight,
+                  ),
+                ),
               _CornerAccent(
                 color: cornerColor,
                 alignment: Alignment.topLeft,
@@ -71,14 +83,30 @@ class ScanOverlay extends StatelessWidget {
                 alignment: Alignment.bottomRight,
               ),
               Center(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) {
+                    final offsetTween = Tween<Offset>(
+                      begin: const Offset(0, 0.08),
+                      end: Offset.zero,
+                    );
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: animation.drive(offsetTween), child: child),
+                    );
+                  },
+                  child: Text(
+                    label,
+                    key: ValueKey(label),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ],

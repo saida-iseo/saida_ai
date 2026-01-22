@@ -41,13 +41,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
             children: [
               Row(
                 children: [
-                  Text('기록', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    '기록',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 20,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                  ),
                   const Spacer(),
                   OutlinedButton(
                     onPressed: items.isEmpty ? null : () => _confirmClear(context, items),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Theme.of(context).colorScheme.primary,
-                      side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+                      side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('전체 삭제'),
@@ -81,10 +88,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('기록이 없습니다.', style: Theme.of(context).textTheme.bodyMedium),
+                            Text(
+                              '기록이 없습니다.',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                            ),
                             const SizedBox(height: 8),
-                            Text('최근 항목을 눌러 복사/열기 가능합니다.',
-                                style: Theme.of(context).textTheme.bodySmall),
+                            Text(
+                              '최근 항목을 눌러 복사/열기 가능합니다.',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontSize: 12,
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                  ),
+                            ),
                           ],
                         ),
                       )
@@ -170,22 +189,26 @@ class _HistoryTile extends StatelessWidget {
                           info.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFDBEAFE),
+                          color: colorScheme.primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           item.label,
                           style: TextStyle(
                             color: colorScheme.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -196,12 +219,18 @@ class _HistoryTile extends StatelessWidget {
                     info.subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF475569)),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 12,
+                          color: colorScheme.onSurface.withOpacity(0.7),
+                        ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '${date.year}.${date.month}.${date.day} · ${item.source == HistorySource.scan ? '스캔' : '생성'}',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(color: const Color(0xFF475569)),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withOpacity(0.55),
+                        ),
                   ),
                 ],
               ),
@@ -394,7 +423,7 @@ class _FilterChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFDBEAFE) : colorScheme.surface,
+            color: selected ? colorScheme.primary.withOpacity(0.16) : colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected ? colorScheme.primary : colorScheme.outlineVariant,
@@ -403,9 +432,9 @@ class _FilterChip extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? colorScheme.primary : const Color(0xFF0F172A),
+              color: selected ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.75),
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: 13,
             ),
           ),
         ),
@@ -423,7 +452,7 @@ class _HistoryThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final imagePath = item.meta?['imagePath'] as String?;
     final colorScheme = Theme.of(context).colorScheme;
-    final size = 48.0;
+    final size = 52.0;
 
     if (imagePath != null && File(imagePath).existsSync()) {
       return ClipRRect(
