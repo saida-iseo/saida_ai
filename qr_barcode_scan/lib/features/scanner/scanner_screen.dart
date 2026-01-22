@@ -314,7 +314,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     final titleHeight = compact ? 28.0 : 32.0;
                     final topPadding = safe.top + 12;
                     final topGap = 12.0;
-                    final toggleHeight = compact ? 36.0 : 40.0;
+                    final toggleGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
+                    final toggleBaseHeight = (compact ? 36.0 : 40.0) + toggleGrowth;
+                    final toggleHeight = math.max(kMinInteractiveDimension, toggleBaseHeight);
                     final barMinHeight = compact ? 52.0 : 56.0;
                     final barGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
                     final barReservedHeight = barMinHeight + barGrowth;
@@ -375,8 +377,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           left: 16,
                           right: 16,
                           bottom: toggleBottom,
-                          child: SizedBox(
-                            height: toggleHeight,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: toggleHeight),
                             child: _SettingToggleRow(
                               label: 'URL/PDF 자동 열기',
                               enabled: settings.autoOpenUrl,
