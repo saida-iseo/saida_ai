@@ -7,6 +7,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_barcode_scan/models/history_item.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
@@ -101,13 +102,17 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
   final TextEditingController _emailSubCtrl = TextEditingController();
   final TextEditingController _emailBodyCtrl = TextEditingController();
   String _wifiSecurity = 'WPA';
+  bool _wifiHidden = false;
+  bool _wifiPassVisible = false;
+  String? _pdfFileName;
+  String? _pdfFilePath;
 
   @override
   void initState() {
     super.initState();
     final initialIndex = _categories.indexWhere((item) => item.type == _type);
     final initialPage = 1000 + (initialIndex < 0 ? 0 : initialIndex);
-    _typeController = PageController(viewportFraction: 0.3, initialPage: initialPage);
+    _typeController = PageController(viewportFraction: 0.27, initialPage: initialPage);
     _typePage = initialPage.toDouble();
     _typeController.addListener(() {
       if (!_typeController.hasClients) return;
@@ -151,7 +156,11 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
       case GeneratorType.video:
       case GeneratorType.social:
       case GeneratorType.playlist:
-        payload = _urlCtrl.text.trim();
+        if (_type == GeneratorType.pdf && _pdfFilePath != null && _urlCtrl.text.trim().isEmpty) {
+          payload = _pdfFilePath ?? '';
+        } else {
+          payload = _urlCtrl.text.trim();
+        }
         break;
       case GeneratorType.vcard:
         payload = _buildVCard();
@@ -159,7 +168,14 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
       case GeneratorType.wifi:
         final ssid = _wifiSsidCtrl.text.trim();
         final pass = _wifiPassCtrl.text.trim();
-        payload = 'WIFI:T:$_wifiSecurity;S:$ssid;P:$pass;;';
+        final security = _wifiSecurity;
+        final hidden = _wifiHidden ? 'H:true;' : '';
+        if (security == 'nopass') {
+          payload = 'WIFI:T:nopass;S:$ssid;$hidden;';
+        } else {
+          payload = 'WIFI:T:$security;S:$ssid;P:$pass;$hidden;';
+        }
+        payload = '$payload;';
         break;
       case GeneratorType.email:
         final to = _emailToCtrl.text.trim();
@@ -198,6 +214,10 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
       _moduleShape = QrDataModuleShape.square;
       _eyeShape = QrEyeShape.square;
       _wifiSecurity = 'WPA';
+      _wifiHidden = false;
+      _wifiPassVisible = false;
+      _pdfFileName = null;
+      _pdfFilePath = null;
     });
     _urlCtrl.clear();
     _textCtrl.clear();
@@ -244,7 +264,7 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
       case GeneratorType.url:
         return {'url': payload, 'label': '웹페이지'};
       case GeneratorType.pdf:
-        return {'url': payload, 'label': 'PDF'};
+        return {'url': payload, 'label': 'PDF', if (_pdfFileName != null) 'fileName': _pdfFileName};
       case GeneratorType.image:
         return {'url': payload, 'label': '이미지'};
       case GeneratorType.video:
@@ -265,7 +285,7 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
           'url': _vUrlCtrl.text.trim(),
         };
       case GeneratorType.wifi:
-        return {'label': '와이파이'};
+        return {'label': '와이파이', 'security': _wifiSecurity, 'hidden': _wifiHidden};
       case GeneratorType.email:
         return {'label': '이메일'};
     }
@@ -291,39 +311,6 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     if (note.isNotEmpty) buffer.writeln('NOTE:$note');
     buffer.write('END:VCARD');
     return buffer.toString();
-  }
-
-  void _onGeneratePressed(BuildContext context) {
-    FocusScope.of(context).unfocus();
-    if (_type == GeneratorType.url ||
-        _type == GeneratorType.pdf ||
-        _type == GeneratorType.image ||
-        _type == GeneratorType.video ||
-        _type == GeneratorType.social ||
-        _type == GeneratorType.playlist) {
-      if (_urlCtrl.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('링크를 입력해 주세요.')),
-        );
-        return;
-      }
-    }
-    if (_type == GeneratorType.text && _textCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('텍스트를 입력해 주세요.')),
-      );
-      return;
-    }
-    if (_type == GeneratorType.vcard &&
-        _vNameCtrl.text.trim().isEmpty &&
-        _vPhoneCtrl.text.trim().isEmpty &&
-        _vEmailCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이름, 전화번호, 이메일 중 하나는 입력해 주세요.')),
-      );
-      return;
-    }
-    _buildPayload();
   }
 
   Future<Uint8List?> _captureQrPng() async {
@@ -377,125 +364,69 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
       eyeShape: _eyeShape,
       color: _qrForegroundColor,
     );
+    final validationMessage = _validationMessage();
 
-    return Stack(
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              child: SizedBox(
-                height: constraints.maxHeight,
-                child: _buildPreviewEditor(dataStyle, eyeStyle, palette),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInputSection() {
-    switch (_type) {
-      case GeneratorType.url:
-      case GeneratorType.pdf:
-      case GeneratorType.image:
-      case GeneratorType.video:
-      case GeneratorType.social:
-      case GeneratorType.playlist:
-        return _InputCard(
-          title: _urlTitleForType(),
-          child: TextField(
-            controller: _urlCtrl,
-            decoration: InputDecoration(hintText: _urlHintForType()),
-          ),
-        );
-      case GeneratorType.text:
-        return _InputCard(
-          title: '텍스트 입력',
-          child: TextField(
-            controller: _textCtrl,
-            maxLines: 4,
-            decoration: const InputDecoration(hintText: '한 줄 메시지나 공지 내용을 입력하세요.'),
-          ),
-        );
-      case GeneratorType.vcard:
-        return _InputCard(
-          title: 'Vcard Plus 정보 입력',
-          child: Column(
-            children: [
-              TextField(controller: _vNameCtrl, decoration: const InputDecoration(hintText: '이름')),
-              const SizedBox(height: 12),
-              TextField(controller: _vOrgCtrl, decoration: const InputDecoration(hintText: '회사/조직')),
-              const SizedBox(height: 12),
-              TextField(controller: _vPhoneCtrl, decoration: const InputDecoration(hintText: '전화번호')),
-              const SizedBox(height: 12),
-              TextField(controller: _vEmailCtrl, decoration: const InputDecoration(hintText: '이메일')),
-              const SizedBox(height: 12),
-              TextField(controller: _vUrlCtrl, decoration: const InputDecoration(hintText: '웹사이트 URL')),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _vNoteCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(hintText: '메모/소개'),
-              ),
-            ],
-          ),
-        );
-      case GeneratorType.wifi:
-        return _InputCard(
-          title: '와이파이 정보 입력',
-          child: Column(
-            children: [
-              TextField(controller: _wifiSsidCtrl, decoration: const InputDecoration(hintText: 'SSID')),
-              const SizedBox(height: 12),
-              TextField(controller: _wifiPassCtrl, decoration: const InputDecoration(hintText: '암호')),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _wifiSecurity,
-                items: const [
-                  DropdownMenuItem(value: 'WPA', child: Text('WPA/WPA2')),
-                  DropdownMenuItem(value: 'WEP', child: Text('WEP')),
-                  DropdownMenuItem(value: 'nopass', child: Text('없음')),
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              24 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight - 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildCategoryCarousel(),
+                  const SizedBox(height: 12),
+                  _buildInputFormCard(palette),
+                  if (validationMessage != null) ...[
+                    const SizedBox(height: 8),
+                    _buildValidationHint(validationMessage, palette),
+                  ],
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: validationMessage == null
+                          ? () {
+                              FocusScope.of(context).unfocus();
+                              _buildPayload();
+                            }
+                          : null,
+                      style: _primaryActionStyle(palette),
+                      child: const Text('QR 생성'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildPreviewCardLarge(
+                    palette: palette,
+                    dataStyle: dataStyle,
+                    eyeStyle: eyeStyle,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: _payload.isEmpty ? null : _openEditSheet,
+                      icon: const Icon(Icons.tune),
+                      label: const Text('편집'),
+                      style: _secondaryActionStyle(palette),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildSaveShareRow(palette),
                 ],
-                onChanged: (value) => setState(() => _wifiSecurity = value ?? 'WPA'),
               ),
-            ],
-          ),
-        );
-      case GeneratorType.email:
-        return _InputCard(
-          title: '이메일 정보 입력',
-          child: Column(
-            children: [
-              TextField(controller: _emailToCtrl, decoration: const InputDecoration(hintText: '받는 사람')),
-              const SizedBox(height: 12),
-              TextField(controller: _emailSubCtrl, decoration: const InputDecoration(hintText: '제목')),
-              const SizedBox(height: 12),
-              TextField(controller: _emailBodyCtrl, decoration: const InputDecoration(hintText: '본문')),
-            ],
-          ),
-        );
-    }
-  }
-
-  String _urlTitleForType() {
-    switch (_type) {
-      case GeneratorType.url:
-        return '웹페이지 링크 입력';
-      case GeneratorType.pdf:
-        return 'PDF 링크 입력';
-      case GeneratorType.image:
-        return '이미지 링크 입력';
-      case GeneratorType.video:
-        return '비디오 링크 입력';
-      case GeneratorType.social:
-        return '소셜 링크 입력';
-      case GeneratorType.playlist:
-        return '재생목록 링크 입력';
-      default:
-        return '링크 입력';
-    }
+            ),
+          );
+        },
+      ),
+    );
   }
 
   String _urlHintForType() {
@@ -517,229 +448,70 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     }
   }
 
-  Widget _buildTypeIntro(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final current = _categories.firstWhere((item) => item.type == _type);
+  Widget _buildCategoryCarousel() {
+    return SizedBox(
+      height: 84,
+      child: PageView.builder(
+        controller: _typeController,
+        itemCount: 10000,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) {
+          final selected = _categories[index % _categories.length];
+          setState(() {
+            _type = selected.type;
+            _payload = '';
+          });
+        },
+        itemBuilder: (context, index) {
+          final item = _categories[index % _categories.length];
+          final distance = (index - _typePage).abs();
+          final scale = (1.0 - (distance * 0.02)).clamp(0.96, 1.0);
+          final opacity = (1 - (distance * 0.15)).clamp(0.75, 1.0);
+          final selected = item.type == _type;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _IconBadge(icon: current.icon, color: current.badgeColor, selected: true),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  current.label,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  current.description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF475569)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          return Opacity(
+            opacity: opacity,
+            child: Transform.scale(
+              scale: scale,
+              child: _TypeCard(
+                item: item,
+                selected: selected,
+                onTap: () {
+                  setState(() {
+                    _type = item.type;
+                    _payload = '';
+                  });
+                },
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPreviewEditor(
-    QrDataModuleStyle dataStyle,
-    QrEyeStyle eyeStyle,
-    _GeneratorPalette palette,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: palette.border),
-        boxShadow: [
-          BoxShadow(
-            color: palette.shadow,
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final topHeight = (constraints.maxHeight * 0.36).clamp(240.0, 320.0);
-          final bottomHeight = 72.0;
-          final spacing = 12.0;
-          final gridHeight = (constraints.maxHeight - topHeight - bottomHeight - (spacing * 2))
-              .clamp(0.0, constraints.maxHeight);
-
-          return Column(
-            children: [
-              SizedBox(
-                height: topHeight,
-                child: _buildTopControls(palette),
-              ),
-              SizedBox(height: spacing),
-              SizedBox(
-                height: gridHeight,
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  childAspectRatio: 1,
-                  mainAxisSpacing: spacing,
-                  crossAxisSpacing: spacing,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  children: [
-                    _buildSectionCard(
-                      palette: palette,
-                      title: '미리보기',
-                      child: _buildPreviewCard(
-                        dataStyle,
-                        eyeStyle,
-                        palette,
-                      ),
-                    ),
-                    _buildSectionCard(
-                      palette: palette,
-                      title: '컬러 편집',
-                      child: _buildColorSection(palette: palette),
-                    ),
-                    _buildSectionCard(
-                      palette: palette,
-                      title: '그라데이션',
-                      child: _buildGradientSection(palette),
-                    ),
-                    _buildSectionCard(
-                      palette: palette,
-                      title: 'QR 디자인',
-                      child: _buildDesignSection(palette),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: spacing),
-              SizedBox(
-                height: bottomHeight,
-                child: _buildSaveShareRow(palette),
-              ),
-            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildTopControls(_GeneratorPalette palette) {
-    final labelStyle = TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      color: palette.secondaryText,
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 112,
-          child: PageView.builder(
-            controller: _typeController,
-            itemCount: 10000,
-            physics: const BouncingScrollPhysics(),
-            onPageChanged: (index) {
-              final selected = _categories[index % _categories.length];
-              setState(() {
-                _type = selected.type;
-                _payload = '';
-              });
-            },
-            itemBuilder: (context, index) {
-              final item = _categories[index % _categories.length];
-              final distance = (index - _typePage).abs();
-              final scale = (1.0 - (distance * 0.02)).clamp(0.96, 1.0);
-              final opacity = (1 - (distance * 0.15)).clamp(0.75, 1.0);
-              final selected = item.type == _type;
-
-              return Opacity(
-                opacity: opacity,
-                child: Transform.scale(
-                  scale: scale,
-                  child: _TypeCard(
-                    item: item,
-                    selected: selected,
-                    onTap: () {
-                      setState(() {
-                        _type = item.type;
-                        _payload = '';
-                      });
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 6),
-        Expanded(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: _buildInputCard(palette, labelStyle),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 56,
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _onGeneratePressed(context),
-                  style: _primaryActionStyle(palette),
-                  child: const Text('QR 생성'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInputCard(_GeneratorPalette palette, TextStyle labelStyle) {
+  Widget _buildInputFormCard(_GeneratorPalette palette) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: palette.border),
       ),
-      child: _buildCompactInputSection(palette, labelStyle),
+      child: _buildFormForType(palette),
     );
   }
 
-  Widget _buildCompactInputSection(_GeneratorPalette palette, TextStyle labelStyle) {
-    final decoration = _compactInputDecoration();
+  Widget _buildFormForType(_GeneratorPalette palette) {
+    final labelStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      color: palette.secondaryText,
+    );
     const textStyle = TextStyle(fontSize: 14);
+    final decoration = _compactInputDecoration();
     switch (_type) {
       case GeneratorType.url:
-      case GeneratorType.pdf:
       case GeneratorType.image:
       case GeneratorType.video:
       case GeneratorType.social:
@@ -748,11 +520,85 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('링크', style: labelStyle),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextField(
               controller: _urlCtrl,
               style: textStyle,
-              decoration: decoration.copyWith(hintText: _urlHintForType()),
+              maxLines: 1,
+              decoration: decoration.copyWith(
+                hintText: _urlHintForType(),
+                suffixIcon: _urlCtrl.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          _urlCtrl.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close, size: 18),
+                        tooltip: '입력 지우기',
+                      ),
+                suffixIconConstraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        );
+      case GeneratorType.pdf:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PDF 링크', style: labelStyle),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _urlCtrl,
+              style: textStyle,
+              maxLines: 1,
+              decoration: decoration.copyWith(
+                hintText: _urlHintForType(),
+                suffixIcon: _urlCtrl.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          _urlCtrl.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close, size: 18),
+                        tooltip: '입력 지우기',
+                      ),
+                suffixIconConstraints: const BoxConstraints(minHeight: 32, minWidth: 32),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            Text('PDF 업로드 (선택)', style: labelStyle),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _pickPdfFile,
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('파일 선택'),
+                  style: _secondaryActionStyle(palette),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _pdfFileName ?? '선택된 파일 없음',
+                    style: TextStyle(color: palette.secondaryText, fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_pdfFileName != null)
+                  IconButton(
+                    onPressed: () => setState(() {
+                      _pdfFileName = null;
+                      _pdfFilePath = null;
+                    }),
+                    icon: const Icon(Icons.close, size: 18),
+                    tooltip: '선택 해제',
+                  ),
+              ],
             ),
           ],
         );
@@ -761,12 +607,13 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('내용', style: labelStyle),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextField(
               controller: _textCtrl,
-              maxLines: 1,
+              maxLines: 2,
               style: textStyle,
               decoration: decoration.copyWith(hintText: '내용을 입력하세요.'),
+              onChanged: (_) => setState(() {}),
             ),
           ],
         );
@@ -775,96 +622,408 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('이름', style: labelStyle),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextField(
               controller: _vNameCtrl,
               style: textStyle,
               decoration: decoration.copyWith(hintText: '이름'),
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 10),
             Text('전화번호', style: labelStyle),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextField(
               controller: _vPhoneCtrl,
               style: textStyle,
               decoration: decoration.copyWith(hintText: '전화번호'),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 10),
+            Text('이메일', style: labelStyle),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _vEmailCtrl,
+              style: textStyle,
+              decoration: decoration.copyWith(hintText: '이메일'),
+              onChanged: (_) => setState(() {}),
             ),
           ],
         );
       case GeneratorType.wifi:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('SSID', style: labelStyle),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _wifiSsidCtrl,
-                    style: textStyle,
-                    decoration: decoration.copyWith(hintText: 'SSID'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () => _openDetailSheet(context),
-                  style: _compactActionStyle(palette),
-                  child: const Icon(Icons.settings, size: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text('비밀번호', style: labelStyle),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _wifiPassCtrl,
-              style: textStyle,
-              decoration: decoration.copyWith(hintText: '비밀번호'),
-            ),
-          ],
-        );
+        return _buildWifiForm(palette, labelStyle, decoration, textStyle);
       case GeneratorType.email:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('받는 사람', style: labelStyle),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextField(
               controller: _emailToCtrl,
               style: textStyle,
               decoration: decoration.copyWith(hintText: '받는 사람'),
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 10),
             Text('제목', style: labelStyle),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextField(
               controller: _emailSubCtrl,
               style: textStyle,
               decoration: decoration.copyWith(hintText: '제목'),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 10),
+            Text('본문', style: labelStyle),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _emailBodyCtrl,
+              maxLines: 3,
+              style: textStyle,
+              decoration: decoration.copyWith(hintText: '본문'),
+              onChanged: (_) => setState(() {}),
             ),
           ],
         );
     }
   }
 
+  Widget _buildWifiForm(
+    _GeneratorPalette palette,
+    TextStyle labelStyle,
+    InputDecoration decoration,
+    TextStyle textStyle,
+  ) {
+    final passwordEnabled = _wifiSecurity != 'nopass';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('SSID', style: labelStyle),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _wifiSsidCtrl,
+          style: textStyle,
+          decoration: decoration.copyWith(hintText: 'SSID'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 10),
+        Text('암호화 방식', style: labelStyle),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: _wifiSecurity,
+          decoration: decoration,
+          items: const [
+            DropdownMenuItem(value: 'nopass', child: Text('Open')),
+            DropdownMenuItem(value: 'WPA', child: Text('WPA/WPA2')),
+            DropdownMenuItem(value: 'WPA3', child: Text('WPA3')),
+            DropdownMenuItem(value: 'WEP', child: Text('WEP')),
+          ],
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() {
+              _wifiSecurity = value;
+              if (value == 'nopass') {
+                _wifiPassCtrl.clear();
+              }
+            });
+          },
+        ),
+        const SizedBox(height: 10),
+        Text('비밀번호', style: labelStyle),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _wifiPassCtrl,
+          style: textStyle,
+          obscureText: !_wifiPassVisible,
+          enabled: passwordEnabled,
+          decoration: decoration.copyWith(
+            hintText: passwordEnabled ? '비밀번호 입력' : 'Open 네트워크는 비밀번호가 필요 없습니다',
+            suffixIcon: IconButton(
+              onPressed: passwordEnabled
+                  ? () => setState(() => _wifiPassVisible = !_wifiPassVisible)
+                  : null,
+              icon: Icon(_wifiPassVisible ? Icons.visibility : Icons.visibility_off, size: 18),
+              tooltip: _wifiPassVisible ? '비밀번호 숨기기' : '비밀번호 보기',
+            ),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Text('숨김 네트워크', style: labelStyle),
+            const Spacer(),
+            Switch.adaptive(
+              value: _wifiHidden,
+              onChanged: (value) => setState(() => _wifiHidden = value),
+              activeColor: palette.primary,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   InputDecoration _compactInputDecoration() {
     return const InputDecoration(
       isDense: true,
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      constraints: BoxConstraints(minHeight: 44),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(borderSide: BorderSide.none),
     );
   }
 
-  Widget _buildSectionCard({
-    required _GeneratorPalette palette,
+  Widget _buildValidationHint(String message, _GeneratorPalette palette) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: palette.warningBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.border),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: palette.primaryText),
+      ),
+    );
+  }
+
+  String? _validationMessage() {
+    switch (_type) {
+      case GeneratorType.url:
+      case GeneratorType.image:
+      case GeneratorType.video:
+      case GeneratorType.social:
+      case GeneratorType.playlist:
+      case GeneratorType.pdf:
+        if (_urlCtrl.text.trim().isEmpty && (_type != GeneratorType.pdf || _pdfFilePath == null)) {
+          return '링크 또는 파일을 입력해 주세요.';
+        }
+        return null;
+      case GeneratorType.text:
+        return _textCtrl.text.trim().isEmpty ? '텍스트를 입력해 주세요.' : null;
+      case GeneratorType.vcard:
+        if (_vNameCtrl.text.trim().isEmpty &&
+            _vPhoneCtrl.text.trim().isEmpty &&
+            _vEmailCtrl.text.trim().isEmpty) {
+          return '이름, 전화번호, 이메일 중 하나는 입력해 주세요.';
+        }
+        return null;
+      case GeneratorType.wifi:
+        if (_wifiSsidCtrl.text.trim().isEmpty) {
+          return 'SSID를 입력해 주세요.';
+        }
+        if (_wifiSecurity != 'nopass' && _wifiPassCtrl.text.trim().isEmpty) {
+          return '선택한 보안 방식에는 비밀번호가 필요합니다.';
+        }
+        return null;
+      case GeneratorType.email:
+        if (_emailToCtrl.text.trim().isEmpty) {
+          return '받는 사람 주소를 입력해 주세요.';
+        }
+        return null;
+    }
+  }
+
+  Future<void> _pickPdfFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    setState(() {
+      _pdfFilePath = file.path;
+      _pdfFileName = file.name;
+    });
+  }
+
+  Future<void> _openEditSheet() async {
+    if (_payload.isEmpty) return;
+    var draftForeground = _qrForegroundColor;
+    var draftBackground = _qrBackgroundColor;
+    var draftUseGradient = _useGradient;
+    var draftDirection = _gradientDirection;
+    var draftIntensity = _gradientIntensity;
+    var draftModuleShape = _moduleShape;
+    var draftEyeShape = _eyeShape;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final modalPalette = _generatorPalette(context);
+        return StatefulBuilder(
+          builder: (context, setStateSheet) {
+            final dataStyle = QrDataModuleStyle(
+              dataModuleShape: draftModuleShape,
+              color: draftForeground,
+            );
+            final eyeStyle = QrEyeStyle(
+              eyeShape: draftEyeShape,
+              color: draftForeground,
+            );
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: modalPalette.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: modalPalette.border),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'QR 편집',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: modalPalette.primaryText,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: _buildQrPreviewBox(
+                            palette: modalPalette,
+                            payload: _payload,
+                            background: draftBackground,
+                            useGradient: draftUseGradient,
+                            gradientIntensity: draftIntensity,
+                            gradientDirection: draftDirection,
+                            dataStyle: dataStyle,
+                            eyeStyle: eyeStyle,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildEditSectionCard(
+                                title: '컬러 편집',
+                                palette: modalPalette,
+                                child: SizedBox(
+                                  height: 150,
+                                  child: _buildColorSection(
+                                    palette: modalPalette,
+                                    foreground: draftForeground,
+                                    background: draftBackground,
+                                    onForeground: (color) => setStateSheet(() => draftForeground = color),
+                                    onBackground: (color) => setStateSheet(() => draftBackground = color),
+                                    onCustomForeground: () => _openColorPicker(
+                                      title: 'QR 색상',
+                                      initial: draftForeground,
+                                      onChanged: (color) => setStateSheet(() => draftForeground = color),
+                                    ),
+                                    onCustomBackground: () => _openColorPicker(
+                                      title: '배경색',
+                                      initial: draftBackground,
+                                      onChanged: (color) => setStateSheet(() => draftBackground = color),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildEditSectionCard(
+                                title: '그라데이션',
+                                palette: modalPalette,
+                                child: _buildGradientSection(
+                                  palette: modalPalette,
+                                  useGradient: draftUseGradient,
+                                  direction: draftDirection,
+                                  intensity: draftIntensity,
+                                  onToggle: (value) => setStateSheet(() => draftUseGradient = value),
+                                  onDirection: (value) => setStateSheet(() => draftDirection = value),
+                                  onIntensity: (value) => setStateSheet(() => draftIntensity = value),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildEditSectionCard(
+                                title: '패턴',
+                                palette: modalPalette,
+                                child: _buildDesignSection(
+                                  palette: modalPalette,
+                                  moduleShape: draftModuleShape,
+                                  onShape: (value) => setStateSheet(() {
+                                    draftModuleShape = value;
+                                    draftEyeShape =
+                                        value == QrDataModuleShape.circle ? QrEyeShape.circle : QrEyeShape.square;
+                                  }),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: _secondaryActionStyle(modalPalette),
+                                child: const Text('취소'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _qrForegroundColor = draftForeground;
+                                    _qrBackgroundColor = draftBackground;
+                                    _useGradient = draftUseGradient;
+                                    _gradientDirection = draftDirection;
+                                    _gradientIntensity = draftIntensity;
+                                    _moduleShape = draftModuleShape;
+                                    _eyeShape = draftEyeShape;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                                style: _primaryActionStyle(modalPalette),
+                                child: const Text('저장'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEditSectionCard({
     required String title,
+    required _GeneratorPalette palette,
     required Widget child,
   }) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
         borderRadius: BorderRadius.circular(16),
@@ -875,27 +1034,130 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
         children: [
           Text(
             title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: palette.primaryText,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: palette.primaryText),
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewCardLarge({
+    required _GeneratorPalette palette,
+    required QrDataModuleStyle dataStyle,
+    required QrEyeStyle eyeStyle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.border),
+        boxShadow: [
+          BoxShadow(
+            color: palette.shadow,
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '미리보기',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: palette.primaryText),
+                ),
+              ),
+              IconButton(
+                onPressed: _resetGeneratorState,
+                icon: Icon(Icons.refresh, size: 18, color: palette.primaryText),
+                tooltip: '초기화',
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          AspectRatio(
+            aspectRatio: 1,
+            child: _buildQrPreviewBox(
+              palette: palette,
+              payload: _payload,
+              background: _qrBackgroundColor,
+              useGradient: _useGradient,
+              gradientIntensity: _gradientIntensity,
+              gradientDirection: _gradientDirection,
+              dataStyle: dataStyle,
+              eyeStyle: eyeStyle,
+              repaintKey: _qrKey,
             ),
           ),
-          const SizedBox(height: 3),
-          Expanded(child: child),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQrPreviewBox({
+    required _GeneratorPalette palette,
+    required String payload,
+    required Color background,
+    required bool useGradient,
+    required double gradientIntensity,
+    required GradientDirection gradientDirection,
+    required QrDataModuleStyle dataStyle,
+    required QrEyeStyle eyeStyle,
+    Key? repaintKey,
+  }) {
+    final gradient = useGradient
+        ? LinearGradient(
+            colors: [
+              background,
+              background.withOpacity(gradientIntensity),
+            ],
+            begin: _gradientBegin(gradientDirection),
+            end: _gradientEnd(gradientDirection),
+          )
+        : null;
+
+    return RepaintBoundary(
+      key: repaintKey,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: useGradient ? Colors.transparent : background,
+          borderRadius: BorderRadius.circular(20),
+          gradient: gradient,
+          border: Border.all(color: palette.border),
+        ),
+        child: payload.isEmpty
+            ? Center(
+                child: Text(
+                  '입력 후 생성',
+                  style: TextStyle(color: palette.mutedText, fontWeight: FontWeight.w500),
+                ),
+              )
+            : QrImageView(
+                data: payload,
+                size: 200,
+                backgroundColor: useGradient ? Colors.transparent : background,
+                dataModuleStyle: dataStyle,
+                eyeStyle: eyeStyle,
+              ),
       ),
     );
   }
 
   Widget _buildSaveShareRow(_GeneratorPalette palette) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: palette.surfaceAlt,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: palette.border),
       ),
       child: Row(
@@ -907,7 +1169,7 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
               label: const Text('저장'),
               style: _primaryActionStyle(palette).copyWith(
                 padding: MaterialStateProperty.all(
-                  const EdgeInsets.symmetric(vertical: 16),
+                  const EdgeInsets.symmetric(vertical: 12),
                 ),
                 textStyle: MaterialStateProperty.all(
                   const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -924,7 +1186,7 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
               label: const Text('공유'),
               style: _secondaryActionStyle(palette).copyWith(
                 padding: MaterialStateProperty.all(
-                  const EdgeInsets.symmetric(vertical: 16),
+                  const EdgeInsets.symmetric(vertical: 12),
                 ),
                 textStyle: MaterialStateProperty.all(
                   const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -938,107 +1200,14 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     );
   }
 
-  Widget _buildPreviewCard(
-    QrDataModuleStyle dataStyle,
-    QrEyeStyle eyeStyle,
-    _GeneratorPalette palette,
-  ) {
-    final gradient = _useGradient
-        ? LinearGradient(
-            colors: [
-              _qrBackgroundColor,
-              _qrBackgroundColor.withOpacity(_gradientIntensity),
-            ],
-            begin: _gradientBegin(),
-            end: _gradientEnd(),
-          )
-        : null;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final side = constraints.biggest.shortestSide;
-        final size = (side - 24).clamp(110.0, 220.0);
-        final qrBox = RepaintBoundary(
-          key: _qrKey,
-          child: SizedBox.square(
-            dimension: side,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _useGradient ? Colors.transparent : _qrBackgroundColor,
-                borderRadius: BorderRadius.circular(20),
-                gradient: gradient,
-                border: Border.all(color: palette.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: palette.shadow,
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: _payload.isEmpty
-                  ? SizedBox.square(
-                      dimension: size,
-                      child: Center(
-                        child: Text(
-                          '입력 후 생성',
-                          style: TextStyle(color: palette.mutedText, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    )
-                  : QrImageView(
-                      data: _payload,
-                      size: size,
-                      backgroundColor: _useGradient ? Colors.transparent : _qrBackgroundColor,
-                      dataModuleStyle: dataStyle,
-                      eyeStyle: eyeStyle,
-                    ),
-            ),
-          ),
-        );
-
-        return Stack(
-          children: [
-            Center(child: qrBox),
-            Align(
-              alignment: Alignment.topRight,
-              child: InkWell(
-                onTap: _resetGeneratorState,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: palette.surfaceAlt,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: palette.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.refresh, size: 16, color: palette.primaryText),
-                      const SizedBox(width: 4),
-                      Text(
-                        '초기화',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: palette.primaryText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildColorSection({
     required _GeneratorPalette palette,
+    required Color foreground,
+    required Color background,
+    required ValueChanged<Color> onForeground,
+    required ValueChanged<Color> onBackground,
+    required VoidCallback onCustomForeground,
+    required VoidCallback onCustomBackground,
   }) {
     final labelStyle = TextStyle(
       fontSize: 11,
@@ -1052,39 +1221,39 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
         Expanded(
           child: _buildColorPresetBlock(
             title: 'QR 색상',
-            selected: _qrForegroundColor,
+            selected: foreground,
             palette: _presetColors,
             labelStyle: labelStyle,
             paletteTokens: palette,
-            onSelect: (color) => setState(() => _qrForegroundColor = color),
-            onCustom: () => _openColorPicker(
-              title: 'QR 색상',
-              initial: _qrForegroundColor,
-              onChanged: (color) => setState(() => _qrForegroundColor = color),
-            ),
+            onSelect: onForeground,
+            onCustom: onCustomForeground,
           ),
         ),
         const SizedBox(height: 8),
         Expanded(
           child: _buildColorPresetBlock(
             title: '배경색',
-            selected: _qrBackgroundColor,
+            selected: background,
             palette: _presetColors,
             labelStyle: labelStyle,
             paletteTokens: palette,
-            onSelect: (color) => setState(() => _qrBackgroundColor = color),
-            onCustom: () => _openColorPicker(
-              title: '배경색',
-              initial: _qrBackgroundColor,
-              onChanged: (color) => setState(() => _qrBackgroundColor = color),
-            ),
+            onSelect: onBackground,
+            onCustom: onCustomBackground,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildGradientSection(_GeneratorPalette palette) {
+  Widget _buildGradientSection({
+    required _GeneratorPalette palette,
+    required bool useGradient,
+    required GradientDirection direction,
+    required double intensity,
+    required ValueChanged<bool> onToggle,
+    required ValueChanged<GradientDirection> onDirection,
+    required ValueChanged<double> onIntensity,
+  }) {
     final labelStyle = TextStyle(
       fontSize: 11,
       fontWeight: FontWeight.w500,
@@ -1103,8 +1272,8 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
                 Transform.scale(
                   scale: 1.15,
                   child: Switch.adaptive(
-                    value: _useGradient,
-                    onChanged: (value) => setState(() => _useGradient = value),
+                    value: useGradient,
+                    onChanged: onToggle,
                     activeColor: palette.primary,
                     activeTrackColor: palette.primary.withOpacity(0.3),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1114,9 +1283,9 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
             ),
             SizedBox(height: compact ? 4 : 8),
             Opacity(
-              opacity: _useGradient ? 1 : 0.5,
+              opacity: useGradient ? 1 : 0.5,
               child: AbsorbPointer(
-                absorbing: !_useGradient,
+                absorbing: !useGradient,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1131,8 +1300,8 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
                         _SegmentOption(value: GradientDirection.vertical, label: '수직'),
                         _SegmentOption(value: GradientDirection.horizontal, label: '수평'),
                       ],
-                      selected: _gradientDirection,
-                      onSelected: (value) => setState(() => _gradientDirection = value),
+                      selected: direction,
+                      onSelected: onDirection,
                       size: _SegmentSize.small,
                       alignment: WrapAlignment.center,
                     ),
@@ -1143,7 +1312,7 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
                           Text('강도', style: labelStyle),
                           const SizedBox(width: 6),
                           Text(
-                            '${(_gradientIntensity * 100).round()}%',
+                            '${(intensity * 100).round()}%',
                             style: labelStyle,
                           ),
                         ],
@@ -1156,12 +1325,12 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
                         overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
                       ),
                       child: Slider(
-                        value: _gradientIntensity,
+                        value: intensity,
                         min: 0.2,
                         max: 1.0,
                         activeColor: palette.primary,
                         inactiveColor: palette.border,
-                        onChanged: (value) => setState(() => _gradientIntensity = value),
+                        onChanged: onIntensity,
                       ),
                     ),
                   ],
@@ -1174,12 +1343,11 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     );
   }
 
-  Widget _buildDesignSection(_GeneratorPalette palette) {
-    final labelStyle = TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      color: palette.secondaryText,
-    );
+  Widget _buildDesignSection({
+    required _GeneratorPalette palette,
+    required QrDataModuleShape moduleShape,
+    required ValueChanged<QrDataModuleShape> onShape,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1189,11 +1357,8 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
             _SegmentOption(value: QrDataModuleShape.square, label: '클래식'),
             _SegmentOption(value: QrDataModuleShape.circle, label: '라운드'),
           ],
-          selected: _moduleShape,
-          onSelected: (value) => setState(() {
-            _moduleShape = value;
-            _eyeShape = value == QrDataModuleShape.circle ? QrEyeShape.circle : QrEyeShape.square;
-          }),
+          selected: moduleShape,
+          onSelected: onShape,
           size: _SegmentSize.large,
           alignment: WrapAlignment.center,
         ),
@@ -1218,6 +1383,7 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
             Expanded(
               child: Text(title, style: labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
+            Text('기본', style: labelStyle),
             const SizedBox(width: 6),
             Container(
               width: 16,
@@ -1474,59 +1640,8 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     );
   }
 
-  Future<void> _openDetailSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 24 + MediaQuery.of(context).viewInsets.bottom),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '상세 입력',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 12),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Container(
-                      key: ValueKey(_type),
-                      child: _buildInputSection(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: const Text('닫기'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Alignment _gradientBegin() {
-    switch (_gradientDirection) {
+  Alignment _gradientBegin(GradientDirection direction) {
+    switch (direction) {
       case GradientDirection.vertical:
         return Alignment.topCenter;
       case GradientDirection.horizontal:
@@ -1536,8 +1651,8 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
     }
   }
 
-  Alignment _gradientEnd() {
-    switch (_gradientDirection) {
+  Alignment _gradientEnd(GradientDirection direction) {
+    switch (direction) {
       case GradientDirection.vertical:
         return Alignment.bottomCenter;
       case GradientDirection.horizontal:
@@ -1591,18 +1706,6 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
             ? palette.surfaceAlt.withOpacity(0.8)
             : palette.surfaceAlt.withOpacity(0.6),
       ),
-    );
-  }
-
-  ButtonStyle _compactActionStyle(_GeneratorPalette palette) {
-    return OutlinedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-    ).copyWith(
-      side: MaterialStateProperty.all(BorderSide(color: palette.border)),
-      foregroundColor: MaterialStateProperty.all(palette.primaryText),
-      backgroundColor: MaterialStateProperty.all(palette.surfaceAlt),
     );
   }
 
@@ -1776,44 +1879,6 @@ class _GeneratorPalette {
   final Color warningBackground;
 }
 
-class _InputCard extends StatelessWidget {
-  const _InputCard({
-    required this.title,
-    required this.child,
-  });
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
 class _TypeCard extends StatelessWidget {
   const _TypeCard({
     required this.item,
@@ -1834,11 +1899,11 @@ class _TypeCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: borderColor),
         ),
         child: Column(
@@ -1849,7 +1914,7 @@ class _TypeCard extends StatelessWidget {
             Text(
               item.label,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: colorScheme.onSurface,
               ),
@@ -1878,16 +1943,16 @@ class _IconBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: selected ? colorScheme.primary : colorScheme.outlineVariant,
           width: 1,
         ),
       ),
-      child: Icon(icon, size: 24, color: colorScheme.primary),
+      child: Icon(icon, size: 22, color: colorScheme.primary),
     );
   }
 }

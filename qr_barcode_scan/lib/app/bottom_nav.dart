@@ -40,17 +40,19 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('큐싱(크싱) 피해 예방 안내'),
-        content: const Text(
-          'QR코드를 이용한 큐싱(Qshing) 범죄가 증가하고 있습니다.\n'
-          '출처가 불분명한 QR코드는 주의하세요.\n\n'
-          '큐싱이란?\n'
-          'QR코드 + 피싱의 합성어로, 악성 QR코드를 스캔하면 개인·금융정보 탈취, 원격 제어, 결제 피해가 발생할 수 있습니다.\n\n'
-          '예방 수칙\n'
-          '• 출처가 불분명한 QR코드는 스캔하지 않기\n'
-          '• 스캔 후 열리는 URL이 정상인지 확인\n'
-          '• 개인정보 입력을 요구하면 의심\n'
-          '• 보안 앱 최신 상태 유지\n\n'
-          '피해가 의심되면 즉시 비행기 모드 전환 후 백신으로 점검하고, 112/1332/118 등에 신고하세요.',
+        content: const SingleChildScrollView(
+          child: Text(
+            'QR코드를 이용한 큐싱(Qshing) 범죄가 증가하고 있습니다.\n'
+            '출처가 불분명한 QR코드는 주의하세요.\n\n'
+            '큐싱이란?\n'
+            'QR코드 + 피싱의 합성어로, 악성 QR코드를 스캔하면 개인·금융정보 탈취, 원격 제어, 결제 피해가 발생할 수 있습니다.\n\n'
+            '예방 수칙\n'
+            '• 출처가 불분명한 QR코드는 스캔하지 않기\n'
+            '• 스캔 후 열리는 URL이 정상인지 확인\n'
+            '• 개인정보 입력을 요구하면 의심\n'
+            '• 보안 앱 최신 상태 유지\n\n'
+            '피해가 의심되면 즉시 비행기 모드 전환 후 백신으로 점검하고, 112/1332/118 등에 신고하세요.',
+          ),
         ),
         actions: [
           TextButton(

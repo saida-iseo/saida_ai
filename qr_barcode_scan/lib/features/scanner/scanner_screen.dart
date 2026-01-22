@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -305,12 +308,31 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           child: _permissionGranted
               ? LayoutBuilder(
                   builder: (context, constraints) {
-                    final size = (constraints.biggest.shortestSide) * 0.7;
-                    final scanWindow = Rect.fromCenter(
-                      center: Offset(constraints.maxWidth / 2, constraints.maxHeight / 2),
-                      width: size,
-                      height: size,
+                    final safe = MediaQuery.of(context).padding;
+                    const topCardHeight = 138.0;
+                    const topCardGap = 18.0;
+                    const bottomBarHeight = 64.0;
+                    const bottomBarGap = 18.0;
+                    const bottomPadding = 16.0;
+                    final topCardTop = safe.top + 12;
+                    final scanTop = topCardTop + topCardHeight + topCardGap;
+                    final bottomBarMaxTop = constraints.maxHeight - bottomBarHeight - bottomPadding - safe.bottom;
+                    final scanBottomLimit = bottomBarMaxTop - bottomBarGap;
+                    final scanSize = math.min(
+                      constraints.maxWidth * 0.72,
+                      (scanBottomLimit - scanTop).clamp(0.0, constraints.maxHeight),
                     );
+                    final scanWindow = Rect.fromLTWH(
+                      (constraints.maxWidth - scanSize) / 2,
+                      scanTop,
+                      scanSize,
+                      scanSize,
+                    );
+                    final bottomBarTop = (scanWindow.bottom + bottomBarGap).clamp(
+                      0.0,
+                      bottomBarMaxTop,
+                    );
+
                     return Stack(
                       fit: StackFit.expand,
                       children: [
@@ -333,12 +355,105 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           label: _isBarcodeMode ? '이 곳에 바코드를 위치시켜 주세요' : '이 곳에 QR 코드를 위치시켜 주세요',
                         ),
                         Positioned(
-                          top: (scanWindow.top - 52).clamp(8.0, constraints.maxHeight),
-                          right: (constraints.maxWidth - scanWindow.right + 8).clamp(8.0, constraints.maxWidth),
-                          child: _SettingToggle(
-                            label: 'URL 자동 열기',
-                            enabled: settings.autoOpenUrl,
-                            onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
+                          left: 16,
+                          right: 16,
+                          top: topCardTop,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: BackdropFilter(
+                              filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.45),
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(color: Colors.white.withOpacity(0.12)),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AnimatedSwitcher(
+                                      duration: const Duration(milliseconds: 180),
+                                      switchInCurve: Curves.easeOut,
+                                      switchOutCurve: Curves.easeIn,
+                                      transitionBuilder: (child, animation) {
+                                        final offsetTween = Tween<Offset>(
+                                          begin: const Offset(0, 0.08),
+                                          end: Offset.zero,
+                                        );
+                                        return FadeTransition(
+                                          opacity: animation,
+                                          child: SlideTransition(position: animation.drive(offsetTween), child: child),
+                                        );
+                                      },
+                                      child: Text(
+                                        _isBarcodeMode ? '바코드 스캔' : 'QR 스캔',
+                                        key: ValueKey(_isBarcodeMode),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _ModeSegmented(
+                                      isBarcode: _isBarcodeMode,
+                                      onChanged: (value) => setState(() => _isBarcodeMode = value),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _SettingToggleRow(
+                                      label: 'URL 자동 열기',
+                                      enabled: settings.autoOpenUrl,
+                                      onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          top: bottomBarTop,
+                          child: SafeArea(
+                            top: false,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: BackdropFilter(
+                                filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  height: bottomBarHeight,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _ScanControlButton(
+                                        icon: Icons.photo_library_outlined,
+                                        label: '앨범',
+                                        onTap: _pickFromGallery,
+                                      ),
+                                      _ScanControlButton(
+                                        icon: _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
+                                        label: '플래시',
+                                        onTap: () async {
+                                          await _controller.toggleTorch();
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -347,88 +462,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 )
               : _PermissionPrompt(onRetry: _requestCameraPermission),
         ),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: SafeArea(
-            bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      switchInCurve: Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
-                      transitionBuilder: (child, animation) {
-                        final offsetTween = Tween<Offset>(
-                          begin: const Offset(0, 0.08),
-                          end: Offset.zero,
-                        );
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(position: animation.drive(offsetTween), child: child),
-                        );
-                      },
-                      child: Text(
-                        _isBarcodeMode ? '바코드 스캔' : 'QR 스캔',
-                        key: ValueKey(_isBarcodeMode),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _ModeSegmented(
-                      isBarcode: _isBarcodeMode,
-                      onChanged: (value) => setState(() => _isBarcodeMode = value),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        if (_permissionGranted)
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: SafeArea(
-              top: false,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
-                ),
-                child: Row(
-                  children: [
-                    _ScanControlButton(
-                      icon: Icons.photo_library_outlined,
-                      label: '앨범',
-                      onTap: _pickFromGallery,
-                    ),
-                    _ScanControlButton(
-                      icon: _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
-                      label: '플래시',
-                      onTap: () async {
-                        await _controller.toggleTorch();
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -548,8 +581,8 @@ class _ModePill extends StatelessWidget {
   }
 }
 
-class _SettingToggle extends StatelessWidget {
-  const _SettingToggle({
+class _SettingToggleRow extends StatelessWidget {
+  const _SettingToggleRow({
     required this.label,
     required this.enabled,
     required this.onChanged,
@@ -561,33 +594,25 @@ class _SettingToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.85),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(width: 8),
-          Switch.adaptive(
-            value: enabled,
-            onChanged: onChanged,
-            activeColor: Theme.of(context).colorScheme.primary,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 8),
+        Switch.adaptive(
+          value: enabled,
+          onChanged: onChanged,
+          activeColor: Theme.of(context).colorScheme.primary,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ],
     );
   }
 }
