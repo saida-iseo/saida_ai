@@ -1,14 +1,21 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_design.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_type.dart';
 import 'package:qr_barcode_scan/features/generator/services/payload_builder.dart';
 import 'package:qr_barcode_scan/features/generator/services/upload_service.dart';
 import 'package:qr_barcode_scan/features/generator/widgets/design_editor_sheet.dart';
 import 'package:qr_barcode_scan/features/generator/widgets/qr_preview_card.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class QrFormScreen extends StatefulWidget {
   const QrFormScreen({super.key, required this.type});
@@ -25,6 +32,7 @@ class _QrFormScreenState extends State<QrFormScreen> {
   String _payload = '';
   String? _error;
   bool _uploading = false;
+  final GlobalKey _qrKey = GlobalKey();
 
   // Common controllers
   final _urlCtrl = TextEditingController();
@@ -146,7 +154,10 @@ class _QrFormScreenState extends State<QrFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    QrPreviewCard(payload: _payload, design: _design),
+                    RepaintBoundary(
+                      key: _qrKey,
+                      child: QrPreviewCard(payload: _payload, design: _design),
+                    ),
                     const SizedBox(height: 14),
                     _buildForm(context),
                     if (_error != null) ...[
@@ -176,9 +187,16 @@ class _QrFormScreenState extends State<QrFormScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
+          child: OutlinedButton(
+            onPressed: _payload.isEmpty ? null : _saveQr,
+            child: const Text('저장'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
           child: ElevatedButton(
-            onPressed: _payload.isEmpty ? null : () => Navigator.pop(context),
-            child: const Text('완료'),
+            onPressed: _payload.isEmpty ? null : _shareQr,
+            child: const Text('공유'),
           ),
         ),
       ],
@@ -691,6 +709,39 @@ class _QrFormScreenState extends State<QrFormScreen> {
     if (updated != null) {
       setState(() => _design = updated);
     }
+  }
+
+  Future<Uint8List?> _captureQrPng() async {
+    final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) return null;
+    final image = await boundary.toImage(pixelRatio: 3);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    return data?.buffer.asUint8List();
+  }
+
+  Future<void> _shareQr() async {
+    final bytes = await _captureQrPng();
+    if (bytes == null) return;
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/qr_code.png');
+    await file.writeAsBytes(bytes);
+    await Share.shareXFiles([XFile(file.path)], text: 'QR Code');
+  }
+
+  Future<void> _saveQr() async {
+    final bytes = await _captureQrPng();
+    if (bytes == null) return;
+    if (Platform.isIOS) {
+      await Permission.photos.request();
+    } else {
+      await Permission.storage.request();
+    }
+    final result = await ImageGallerySaver.saveImage(bytes, quality: 100, name: 'qr_code');
+    if (!mounted) return;
+    final success = (result['isSuccess'] as bool?) ?? false;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(success ? '갤러리에 저장했습니다.' : '저장에 실패했습니다.')),
+    );
   }
 }
 
