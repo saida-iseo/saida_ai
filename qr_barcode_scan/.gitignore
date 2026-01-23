@@ -33,6 +33,11 @@ migrate_working_dir/
 /build/
 /coverage/
 /android/build/
+**/build/
+**/.gradle/
+third_party/image_gallery_saver/example/android/gradlew
+third_party/image_gallery_saver/example/android/gradlew.bat
+third_party/image_gallery_saver/example/android/gradle/wrapper/gradle-wrapper.jar
 
 # Symbolication related
 app.*.symbols
