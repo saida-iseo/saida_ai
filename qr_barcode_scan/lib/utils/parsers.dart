@@ -65,7 +65,7 @@ bool _isPdfUrl(String url) {
 Map<String, String> _parseWifi(String value) {
   if (!value.startsWith('WIFI:')) return {};
   final cleaned = value.substring(5);
-  final parts = cleaned.split(';');
+  final parts = _splitWifiParts(cleaned);
   final data = <String, String>{};
   for (final part in parts) {
     if (part.startsWith('S:')) {
@@ -79,6 +79,34 @@ Map<String, String> _parseWifi(String value) {
     }
   }
   return data;
+}
+
+List<String> _splitWifiParts(String input) {
+  final parts = <String>[];
+  final buffer = StringBuffer();
+  var escaped = false;
+  for (final rune in input.runes) {
+    final char = String.fromCharCode(rune);
+    if (escaped) {
+      buffer.write(char);
+      escaped = false;
+      continue;
+    }
+    if (char == '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char == ';') {
+      parts.add(buffer.toString());
+      buffer.clear();
+      continue;
+    }
+    buffer.write(char);
+  }
+  if (buffer.length > 0) {
+    parts.add(buffer.toString());
+  }
+  return parts;
 }
 
 Map<String, String> _parseEmail(String value) {

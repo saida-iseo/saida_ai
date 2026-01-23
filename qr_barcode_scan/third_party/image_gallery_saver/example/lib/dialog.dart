@@ -72,14 +72,13 @@ class HDialogWidget<T> extends StatelessWidget {
   final bool isSheetStyle;
 
   const HDialogWidget(
-      {Key? key,
+      {super.key,
       this.title,
       this.content,
       this.contentWidget,
       this.options = const [],
       this.bottomSheetCancel,
-      this.isSheetStyle = false})
-      : super(key: key);
+      this.isSheetStyle = false});
 
   @override
   Widget build(BuildContext context) {
@@ -117,8 +116,8 @@ class HDialogWidget<T> extends StatelessWidget {
                   style: TextStyle(color: _getActionColor(option.type))));
     }).toList();
     final dialog = AlertDialog(
-      title: title==null ? null : Text(title),
-      content: contentWidget != null && content==null
+      title: title == null ? null : Text(title),
+      content: contentWidget != null && content == null
           ? contentWidget
           : Text(content ?? ''),
       actions: actions,
@@ -144,7 +143,7 @@ class HDialogWidget<T> extends StatelessWidget {
       );
     }).toList();
     return CupertinoAlertDialog(
-      title: title==null ? null : Text(title),
+      title: title == null ? null : Text(title),
       content: contentWidget != null && content == null
           ? contentWidget
           : Text(content ?? ''),
@@ -174,8 +173,9 @@ class HDialogWidget<T> extends StatelessWidget {
         : CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(context, bottomSheetCancel.actionValue);
-              if (bottomSheetCancel.onPressed != null)
+              if (bottomSheetCancel.onPressed != null) {
                 bottomSheetCancel.onPressed!();
+              }
             },
             isDefaultAction: true,
             child: bottomSheetCancel.child ??
@@ -184,8 +184,8 @@ class HDialogWidget<T> extends StatelessWidget {
                         color: _getActionColor(bottomSheetCancel.type))),
           );
     return CupertinoActionSheet(
-        title: title==null ? null : Text(title),
-        message: contentWidget != null && content==null
+        title: title == null ? null : Text(title),
+        message: contentWidget != null && content == null
             ? contentWidget
             : Text(content ?? ''),
         actions: actions,

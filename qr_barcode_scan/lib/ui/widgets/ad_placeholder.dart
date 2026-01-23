@@ -9,7 +9,7 @@ class AdPlaceholder extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       height: 52,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),

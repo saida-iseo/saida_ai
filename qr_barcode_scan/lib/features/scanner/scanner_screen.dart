@@ -22,12 +22,14 @@ class ScannerScreen extends ConsumerStatefulWidget {
 }
 
 class _ScannerScreenState extends ConsumerState<ScannerScreen> {
-  final MobileScannerController _controller = MobileScannerController(torchEnabled: false);
+  final MobileScannerController _controller = MobileScannerController(
+    torchEnabled: false,
+  );
   String? _lastValue;
   DateTime? _lastScanTime;
   bool _isSheetOpen = false;
   bool _permissionGranted = false;
-  bool _isBarcodeMode = false;
+  final bool _isBarcodeMode = false;
 
   @override
   void initState() {
@@ -43,7 +45,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     });
   }
 
-  Future<void> _handleBarcode(BarcodeCapture capture, {String? imagePath}) async {
+  Future<void> _handleBarcode(
+    BarcodeCapture capture, {
+    String? imagePath,
+  }) async {
     if (_isSheetOpen) return;
     final barcode = capture.barcodes.firstOrNull;
     final value = barcode?.rawValue;
@@ -92,7 +97,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     if (!mounted) return;
     var autoOpenUrl = settings.autoOpenUrl;
-    final isOpenableUrl = parsed.type == PayloadType.url || parsed.type == PayloadType.pdf;
+    final isOpenableUrl =
+        parsed.type == PayloadType.url || parsed.type == PayloadType.pdf;
     if (isOpenableUrl && !LocalStorage.firstScanNoticeDone) {
       final nextAutoOpen = await _showFirstScanNotice(
         context,
@@ -181,9 +187,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final capture = await _controller.analyzeImage(image.path);
     if (capture == null || capture.barcodes.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미지에서 QR/바코드를 찾을 수 없습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이미지에서 QR/바코드를 찾을 수 없습니다.')));
       return;
     }
     await _handleBarcode(capture, imagePath: image.path);
@@ -194,9 +200,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final uri = Uri.tryParse(url);
     if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('지원하지 않는 링크 형식입니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('지원하지 않는 링크 형식입니다.')));
       return;
     }
     if (!settings.safetyCheck) {
@@ -219,8 +225,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ].join('\n\n'),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('열기')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('열기'),
+            ),
           ],
         ),
       );
@@ -258,10 +270,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   Text('HTTPS: ${isHttps ? '사용' : '미사용'}'),
                   const SizedBox(height: 8),
                   Text(
-                    safety.reasons.isEmpty ? '의심 신호 없음' : safety.reasons.join('\n'),
+                    safety.reasons.isEmpty
+                        ? '의심 신호 없음'
+                        : safety.reasons.join('\n'),
                     style: TextStyle(
                       color: safety.reasons.isEmpty
-                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.7)
                           : Theme.of(context).colorScheme.primary,
                     ),
                   ),
@@ -270,7 +286,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     children: [
                       Checkbox(
                         value: autoOpen,
-                        onChanged: (value) => setStateDialog(() => autoOpen = value ?? false),
+                        onChanged: (value) =>
+                            setStateDialog(() => autoOpen = value ?? false),
                       ),
                       const SizedBox(width: 6),
                       const Expanded(child: Text('다음부터 자동 열기')),
@@ -289,6 +306,36 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         );
       },
     );
+  }
+
+  Future<void> _handleAutoOpenToggle(
+    BuildContext context,
+    bool value,
+  ) async {
+    if (!value) {
+      await ref.read(settingsProvider.notifier).toggleAutoOpenUrl();
+      return;
+    }
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('URL 자동 열기'),
+        content: const Text('링크를 자동으로 열면 피싱 위험이 있습니다. 항상 열기를 켤까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('항상 열기'),
+          ),
+        ],
+      ),
+    );
+    if (approved == true) {
+      await ref.read(settingsProvider.notifier).toggleAutoOpenUrl();
+    }
   }
 
   @override
@@ -316,27 +363,39 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     const titleExtraOffset = 56.0; // 약 2cm 정도 더 내려서 표시
                     final topGap = 12.0;
                     final toggleGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
-                    final toggleBaseHeight = (compact ? 36.0 : 40.0) + toggleGrowth;
-                    final toggleHeight = math.max(kMinInteractiveDimension, toggleBaseHeight);
+                    final toggleBaseHeight =
+                        (compact ? 36.0 : 40.0) + toggleGrowth;
+                    final toggleHeight = math.max(
+                      kMinInteractiveDimension,
+                      toggleBaseHeight,
+                    );
                     final barMinHeight = compact ? 52.0 : 56.0;
                     final barGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
                     final barReservedHeight = barMinHeight + barGrowth;
-                    final barGap = compact ? 26.0 : 32.0; // 추가 여유 간격으로 토글과 하단 컨트롤 분리
+                    final barGap = compact
+                        ? 26.0
+                        : 32.0; // 추가 여유 간격으로 토글과 하단 컨트롤 분리
                     final extraBottomGap = compact ? 8.0 : 12.0;
                     final bottomInset = safe.bottom + extraBottomGap;
                     final topReserved = topPadding + titleHeight + topGap;
-                    final bottomReserved = toggleHeight + barGap + barReservedHeight + bottomInset;
-                    final scanSize = math.min(constraints.maxWidth * 0.72, constraints.maxHeight * 0.72);
+                    final bottomReserved =
+                        toggleHeight + barGap + barReservedHeight + bottomInset;
+                    final scanSize = math.min(
+                      constraints.maxWidth * 0.72,
+                      constraints.maxHeight * 0.72,
+                    );
                     final scanWindow = Rect.fromLTWH(
                       (constraints.maxWidth - scanSize) / 2,
                       (constraints.maxHeight - scanSize) / 2,
                       scanSize,
                       scanSize,
                     );
-                    final bottomBarTop = constraints.maxHeight - bottomInset - barReservedHeight;
+                    final bottomBarTop =
+                        constraints.maxHeight - bottomInset - barReservedHeight;
                     final toggleTop = math.max(
                       scanWindow.bottom + 8,
-                      scanWindow.bottom + (bottomBarTop - scanWindow.bottom - toggleHeight) / 2,
+                      scanWindow.bottom +
+                          (bottomBarTop - scanWindow.bottom - toggleHeight) / 2,
                     );
 
                     return Stack(
@@ -351,7 +410,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                             return Center(
                               child: Text(
                                 '카메라 오류가 발생했습니다.',
-                                style: TextStyle(color: Colors.white.withOpacity(0.9)),
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
                               ),
                             );
                           },
@@ -381,11 +442,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           right: 16,
                           top: toggleTop,
                           child: ConstrainedBox(
-                            constraints: BoxConstraints(minHeight: toggleHeight),
+                            constraints: BoxConstraints(
+                              minHeight: toggleHeight,
+                            ),
                             child: _SettingToggleRow(
-                              label: 'URL/PDF 자동 열기',
+                              label: 'URL 자동 열기',
                               enabled: settings.autoOpenUrl,
-                              onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoOpenUrl(),
+                              onChanged: (value) =>
+                                  _handleAutoOpenToggle(context, value),
                               textStyle: TextStyle(
                                 color: Colors.white.withOpacity(0.85),
                                 fontSize: compact ? 12 : 13,
@@ -401,8 +465,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           child: SafeArea(
                             top: false,
                             child: Container(
-                              constraints: BoxConstraints(minHeight: barMinHeight),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              constraints: BoxConstraints(
+                                minHeight: barMinHeight,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(22),
@@ -417,7 +486,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                                     onTap: _pickFromGallery,
                                   ),
                                   _ScanControlButton(
-                                    icon: _controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
+                                    icon: _controller.torchEnabled
+                                        ? Icons.flash_on
+                                        : Icons.flash_off,
                                     label: '플래시',
                                     fontSize: compact ? 12 : 13,
                                     verticalPadding: compact ? 6 : 8,
@@ -472,7 +543,11 @@ class _ScanControlButton extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 label,
-                style: TextStyle(color: Colors.white, fontSize: fontSize, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w600,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -485,10 +560,7 @@ class _ScanControlButton extends StatelessWidget {
 }
 
 class _ModeSegmented extends StatelessWidget {
-  const _ModeSegmented({
-    required this.isBarcode,
-    required this.onChanged,
-  });
+  const _ModeSegmented({required this.isBarcode, required this.onChanged});
 
   final bool isBarcode;
   final ValueChanged<bool> onChanged;
@@ -550,7 +622,9 @@ class _ModePill extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? colorScheme.primary : Colors.white.withOpacity(0.7),
+            color: selected
+                ? colorScheme.primary
+                : Colors.white.withOpacity(0.7),
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -578,7 +652,12 @@ class _SettingToggleRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(label, style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        Text(
+          label,
+          style: textStyle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(width: 8),
         Switch.adaptive(
           value: enabled,

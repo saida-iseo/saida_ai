@@ -104,7 +104,7 @@ class AppSettings {
       vibrate: map['vibrate'] as bool? ?? true,
       sound: map['sound'] as bool? ?? true,
       autoFocus: map['autoFocus'] as bool? ?? true,
-      autoOpenUrl: map['autoOpenUrl'] as bool? ?? true,
+      autoOpenUrl: map['autoOpenUrl'] as bool? ?? false,
       safetyCheck: map['safetyCheck'] as bool? ?? true,
       themeMode: AppThemeModeX.fromString(map['themeMode'] as String?),
     );

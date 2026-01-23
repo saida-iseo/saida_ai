@@ -20,7 +20,10 @@ class GeneratorScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
-              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+              Divider(
+                height: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
               const SizedBox(height: 12),
               Expanded(
                 child: LayoutBuilder(
@@ -39,7 +42,9 @@ class GeneratorScreen extends StatelessWidget {
                               meta: meta,
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => QrFormScreen(type: meta.type)),
+                                MaterialPageRoute(
+                                  builder: (_) => QrFormScreen(type: meta.type),
+                                ),
                               ),
                             ),
                           )
@@ -70,7 +75,7 @@ class _InlineQrTypeCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Ink(
         decoration: BoxDecoration(
-          color: scheme.surfaceVariant.withOpacity(0.7),
+          color: scheme.surfaceContainerHighest.withOpacity(0.7),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: scheme.outlineVariant),
         ),
@@ -92,7 +97,11 @@ class _InlineQrTypeCard extends StatelessWidget {
               meta.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, height: 1.2),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                height: 1.2,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 2),
@@ -102,7 +111,10 @@ class _InlineQrTypeCard extends StatelessWidget {
               softWrap: true,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 8, color: scheme.onSurface.withOpacity(0.65)),
+              style: TextStyle(
+                fontSize: 8,
+                color: scheme.onSurface.withOpacity(0.65),
+              ),
             ),
           ],
         ),

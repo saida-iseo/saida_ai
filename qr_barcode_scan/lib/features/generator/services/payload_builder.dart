@@ -108,8 +108,10 @@ class QrPayloadBuilder {
         final hidden = data['hidden'] as bool? ?? false;
         if (ssid.isEmpty) return null;
         if (security != 'nopass' && password.isEmpty) return null;
-        final buffer = StringBuffer('WIFI:T:$security;S:$ssid;');
-        if (security != 'nopass') buffer.write('P:$password;');
+        final safeSsid = _escapeWifiField(ssid);
+        final safePassword = _escapeWifiField(password);
+        final buffer = StringBuffer('WIFI:T:$security;S:$safeSsid;');
+        if (security != 'nopass') buffer.write('P:$safePassword;');
         if (hidden) buffer.write('H:true;');
         buffer.write(';');
         return PayloadBuildResult(
@@ -118,4 +120,12 @@ class QrPayloadBuilder {
         );
     }
   }
+}
+
+String _escapeWifiField(String value) {
+  return value
+      .replaceAll('\\', r'\\')
+      .replaceAll(';', r'\;')
+      .replaceAll(',', r'\,')
+      .replaceAll(':', r'\:');
 }

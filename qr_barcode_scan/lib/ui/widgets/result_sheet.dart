@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,11 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ResultSheet extends StatelessWidget {
-  const ResultSheet({
-    super.key,
-    required this.result,
-    required this.onOpenUrl,
-  });
+  const ResultSheet({super.key, required this.result, required this.onOpenUrl});
 
   final ParsedResult result;
   final VoidCallback onOpenUrl;
@@ -46,7 +45,10 @@ class ResultSheet extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: colorScheme.primary.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -70,11 +72,7 @@ class ResultSheet extends StatelessWidget {
           const SizedBox(height: 12),
           _buildContent(context),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _buildActions(context),
-          ),
+          Wrap(spacing: 12, runSpacing: 12, children: _buildActions(context)),
         ],
       ),
     );
@@ -93,7 +91,9 @@ class ResultSheet extends StatelessWidget {
           children: [
             Text(
               domain,
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -103,13 +103,19 @@ class ResultSheet extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 safety.reasons.join(' · '),
-                style: textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                style: textTheme.bodySmall?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.7),
+                ),
               ),
             ],
             const SizedBox(height: 6),
             Text(
               url,
-              style: textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -121,7 +127,10 @@ class ResultSheet extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('SSID: ${result.data['ssid'] ?? '-'}', style: textTheme.titleMedium),
+            Text(
+              'SSID: ${result.data['ssid'] ?? '-'}',
+              style: textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             Text('암호: ${result.data['password'] ?? '-'}'),
             const SizedBox(height: 8),
@@ -132,7 +141,10 @@ class ResultSheet extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('받는 사람: ${result.data['to'] ?? '-'}', style: textTheme.titleMedium),
+            Text(
+              '받는 사람: ${result.data['to'] ?? '-'}',
+              style: textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text('제목: ${result.data['subject'] ?? '-'}'),
             const SizedBox(height: 6),
@@ -151,7 +163,9 @@ class ResultSheet extends StatelessWidget {
           children: [
             Text(
               label,
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -168,11 +182,19 @@ class ResultSheet extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(result.data['name'] ?? 'Vcard Plus', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              result.data['name'] ?? 'Vcard Plus',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
-            if ((result.data['org'] ?? '').isNotEmpty) Text('회사: ${result.data['org']}'),
-            if ((result.data['phone'] ?? '').isNotEmpty) Text('전화: ${result.data['phone']}'),
-            if ((result.data['email'] ?? '').isNotEmpty) Text('이메일: ${result.data['email']}'),
+            if ((result.data['org'] ?? '').isNotEmpty)
+              Text('회사: ${result.data['org']}'),
+            if ((result.data['phone'] ?? '').isNotEmpty)
+              Text('전화: ${result.data['phone']}'),
+            if ((result.data['email'] ?? '').isNotEmpty)
+              Text('이메일: ${result.data['email']}'),
           ],
         );
       case PayloadType.barcode:
@@ -183,12 +205,17 @@ class ResultSheet extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(formatLabel, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              formatLabel,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: isValid
@@ -210,12 +237,18 @@ class ResultSheet extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.local_offer, size: 16, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.local_offer,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   '가격 정보는 제휴 데이터가 필요합니다.',
                   style: textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.65),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.65),
                   ),
                 ),
               ],
@@ -235,9 +268,9 @@ class ResultSheet extends StatelessWidget {
         icon: Icons.copy,
         onTap: () async {
           await Clipboard.setData(ClipboardData(text: result.raw));
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('클립보드에 복사했습니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('클립보드에 복사했습니다.')));
         },
       ),
     ];
@@ -254,6 +287,35 @@ class ResultSheet extends StatelessWidget {
           icon: Icons.open_in_browser,
           color: colorScheme.primary,
           onTap: onOpenUrl,
+        ),
+      );
+    }
+
+    if (result.type == PayloadType.wifi && Platform.isAndroid) {
+      actions.insert(
+        1,
+        _ActionButton(
+          label: '와이파이 연결',
+          icon: Icons.wifi,
+          color: colorScheme.primary,
+          onTap: () async {
+            final password = result.data['password'] ?? '';
+            if (password.isNotEmpty) {
+              await Clipboard.setData(ClipboardData(text: password));
+            }
+            const intent = AndroidIntent(action: 'android.settings.WIFI_SETTINGS');
+            await intent.launch();
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  password.isNotEmpty
+                      ? '와이파이 설정을 열었어요. 비밀번호를 복사했습니다.'
+                      : '와이파이 설정을 열었어요.',
+                ),
+              ),
+            );
+          },
         ),
       );
     }
@@ -278,8 +340,10 @@ class ResultSheet extends StatelessWidget {
               scheme: 'mailto',
               path: result.data['to'] ?? '',
               queryParameters: {
-                if ((result.data['subject'] ?? '').isNotEmpty) 'subject': result.data['subject'],
-                if ((result.data['body'] ?? '').isNotEmpty) 'body': result.data['body'],
+                if ((result.data['subject'] ?? '').isNotEmpty)
+                  'subject': result.data['subject'],
+                if ((result.data['body'] ?? '').isNotEmpty)
+                  'body': result.data['body'],
               },
             );
             await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -390,7 +454,11 @@ class _SafetyBadge extends StatelessWidget {
       ),
       child: Text(
         '안전도: $label',
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

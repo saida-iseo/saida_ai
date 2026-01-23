@@ -62,7 +62,18 @@ class _AdBannerState extends State<AdBanner> {
   @override
   Widget build(BuildContext context) {
     if (_banner == null || !_loaded) {
-      return const SizedBox.shrink();
+      final adUnitId = _adUnitId;
+      if (adUnitId == null) return const SizedBox.shrink();
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        alignment: Alignment.center,
+        width: double.infinity,
+        height: AdSize.banner.height.toDouble(),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+        ),
+      );
     }
 
     return Container(

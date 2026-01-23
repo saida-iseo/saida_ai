@@ -82,7 +82,13 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
         bottom: false,
         child: Column(
           children: [
-            if (index >= 1) const AdBanner(),
+            Visibility(
+              visible: index >= 1,
+              maintainState: true,
+              maintainAnimation: true,
+              maintainSize: false,
+              child: const AdBanner(),
+            ),
             Expanded(child: screens[index]),
           ],
         ),
@@ -153,7 +159,9 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final color = selected ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.7);
+    final color = selected
+        ? colorScheme.primary
+        : colorScheme.onSurface.withOpacity(0.7);
 
     return Expanded(
       child: GestureDetector(
@@ -175,7 +183,7 @@ class _NavItem extends StatelessWidget {
                 height: 32,
                 width: 32,
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant,
+                  color: colorScheme.surfaceContainerHighest,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 18),

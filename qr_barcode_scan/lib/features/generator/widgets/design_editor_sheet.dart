@@ -21,7 +21,9 @@ Future<QrDesign?> showDesignEditor({
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -30,42 +32,68 @@ Future<QrDesign?> showDesignEditor({
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                       child: Row(
                         children: [
-                          const Text('디자인 편집', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                          const Text(
+                            '디자인 편집',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
                           const Spacer(),
                           IconButton(
                             icon: const Icon(Icons.close),
                             onPressed: () => Navigator.pop(context),
-                          )
+                          ),
                         ],
                       ),
                     ),
                     _ColorPalette(
                       title: 'QR 색상',
                       selected: draft.foreground,
-                      onPreset: (c) => setState(() => draft = draft.copyWith(foreground: c)),
+                      onPreset: (c) =>
+                          setState(() => draft = draft.copyWith(foreground: c)),
                       onCustom: () async {
-                        final picked = await _pickColor(context, draft.foreground, 'QR 색상 선택');
-                        if (picked != null) setState(() => draft = draft.copyWith(foreground: picked));
+                        final picked = await _pickColor(
+                          context,
+                          draft.foreground,
+                          'QR 색상 선택',
+                        );
+                        if (picked != null)
+                          setState(
+                            () => draft = draft.copyWith(foreground: picked),
+                          );
                       },
                     ),
                     const SizedBox(height: 12),
                     _ColorPalette(
                       title: '배경색',
                       selected: draft.background,
-                      onPreset: (c) => setState(() => draft = draft.copyWith(background: c)),
+                      onPreset: (c) =>
+                          setState(() => draft = draft.copyWith(background: c)),
                       onCustom: () async {
-                        final picked = await _pickColor(context, draft.background, '배경색 선택');
-                        if (picked != null) setState(() => draft = draft.copyWith(background: picked));
+                        final picked = await _pickColor(
+                          context,
+                          draft.background,
+                          '배경색 선택',
+                        );
+                        if (picked != null)
+                          setState(
+                            () => draft = draft.copyWith(background: picked),
+                          );
                       },
                     ),
                     const SizedBox(height: 12),
                     _PatternRow(
                       selected: draft.pattern,
-                      onSelected: (p) => setState(() => draft = draft.copyWith(pattern: p)),
+                      onSelected: (p) =>
+                          setState(() => draft = draft.copyWith(pattern: p)),
                     ),
                     const SizedBox(height: 16),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
                           Expanded(
@@ -125,7 +153,9 @@ class _ColorPalette extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
               ),
             ],
@@ -145,9 +175,13 @@ class _ColorPalette extends StatelessWidget {
                     child: Container(
                       width: 46,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
                       ),
                       child: const Icon(Icons.add, size: 22),
                     ),
@@ -181,10 +215,7 @@ class _ColorPalette extends StatelessWidget {
 }
 
 class _PatternRow extends StatelessWidget {
-  const _PatternRow({
-    required this.selected,
-    required this.onSelected,
-  });
+  const _PatternRow({required this.selected, required this.onSelected});
 
   final QrPattern selected;
   final ValueChanged<QrPattern> onSelected;
@@ -247,9 +278,15 @@ Future<Color?> _pickColor(BuildContext context, Color initial, String title) {
                 children: [
                   Row(
                     children: [
-                      Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                       const Spacer(),
-                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
                     ],
                   ),
                   ColorPicker(
@@ -269,7 +306,10 @@ Future<Color?> _pickColor(BuildContext context, Color initial, String title) {
                   const SizedBox(height: 12),
                   TextField(
                     controller: controller,
-                    decoration: const InputDecoration(labelText: 'HEX', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'HEX',
+                      border: OutlineInputBorder(),
+                    ),
                     onSubmitted: (value) {
                       final parsed = _parseHex(value);
                       if (parsed != null) {
@@ -295,7 +335,8 @@ Future<Color?> _pickColor(BuildContext context, Color initial, String title) {
   );
 }
 
-String _toHex(Color color) => '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+String _toHex(Color color) =>
+    '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
 Color? _parseHex(String input) {
   final value = input.replaceAll('#', '').trim();

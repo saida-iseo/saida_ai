@@ -15,7 +15,7 @@ class SettingsScreen extends ConsumerWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final titleStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600);
     final subtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12);
-    final detailSubtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
+    final detailSubtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10);
     const tilePadding = EdgeInsets.symmetric(horizontal: 12, vertical: 6);
 
     return ListView(
@@ -23,6 +23,34 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         Text('설정', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
+        Padding(
+          padding: tilePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('테마', style: titleStyle),
+              const SizedBox(height: 6),
+              Text('라이트/다크 전환', style: subtitleStyle),
+              const SizedBox(height: 8),
+              SegmentedButton<AppThemeMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: AppThemeMode.light, label: Text('라이트')),
+                  ButtonSegment(value: AppThemeMode.dark, label: Text('다크')),
+                ],
+                selected: {
+                  settings.themeMode == AppThemeMode.system
+                      ? AppThemeMode.light
+                      : settings.themeMode,
+                },
+                onSelectionChanged: (value) {
+                  ref.read(settingsProvider.notifier).setThemeMode(value.first);
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
         _SectionTitle(title: '기본 설정'),
         _SectionCard(
           children: [
@@ -40,15 +68,6 @@ class SettingsScreen extends ConsumerWidget {
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleSound(),
               titleStyle: titleStyle,
               subtitleStyle: subtitleStyle,
-            ),
-            const _CardDivider(),
-            _SwitchTile(
-              title: '자동 초점',
-              value: settings.autoFocus,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoFocus(),
-              subtitle: settings.autoFocus ? '현재 상태: 사용 중' : '현재 상태: 사용 안 함',
-              titleStyle: titleStyle,
-              subtitleStyle: detailSubtitleStyle,
             ),
             const _CardDivider(),
             _SwitchTile(
@@ -80,31 +99,6 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
-        Padding(
-          padding: tilePadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('테마', style: titleStyle),
-              const SizedBox(height: 6),
-              Text('라이트/다크 전환', style: subtitleStyle),
-              const SizedBox(height: 8),
-              SegmentedButton<AppThemeMode>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: AppThemeMode.system, label: Text('시스템')),
-                  ButtonSegment(value: AppThemeMode.light, label: Text('라이트')),
-                  ButtonSegment(value: AppThemeMode.dark, label: Text('다크')),
-                ],
-                selected: {settings.themeMode},
-                onSelectionChanged: (value) {
-                  ref.read(settingsProvider.notifier).setThemeMode(value.first);
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
         _SectionTitle(title: '권한'),
         _SectionCard(
           children: [
@@ -128,83 +122,92 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         _SectionTitle(title: '정보'),
-        ListTile(
-          contentPadding: tilePadding,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          minVerticalPadding: 0,
-          title: Text('언어', style: titleStyle),
-          subtitle: Text('한국어', style: subtitleStyle),
-        ),
-        ListTile(
-          contentPadding: tilePadding,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          minVerticalPadding: 0,
-          title: Text('문의하기', style: titleStyle),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () async {
-            final uri = Uri(
-              scheme: 'mailto',
-              path: 'support@saida.ai',
-              queryParameters: {
-                'subject': 'SAIDA QR SCANNER 문의',
+        _SectionCard(
+          children: [
+            ListTile(
+              contentPadding: tilePadding,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              minVerticalPadding: 0,
+              title: Text('언어', style: titleStyle),
+              subtitle: Text('한국어', style: subtitleStyle),
+            ),
+            const _CardDivider(),
+            ListTile(
+              contentPadding: tilePadding,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              minVerticalPadding: 0,
+              title: Text('문의하기', style: titleStyle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final uri = Uri(
+                  scheme: 'mailto',
+                  path: 'stiseo00@gmail.com',
+                  queryParameters: {
+                    'subject': 'SAIDA QR SCANNER 문의',
+                  },
+                );
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
               },
-            );
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          },
-        ),
-        ListTile(
-          contentPadding: tilePadding,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          minVerticalPadding: 0,
-          title: Text('앱 공유', style: titleStyle),
-          trailing: const Icon(Icons.share),
-          onTap: () => Share.share('QR-Barcode scan 앱을 공유해보세요!'),
-        ),
-        ListTile(
-          contentPadding: tilePadding,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          minVerticalPadding: 0,
-          title: Text('개인정보 보호정책', style: titleStyle),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const LegalScreen(
-                title: '개인정보 보호정책',
-                assetPath: 'assets/legal/privacy_ko.txt',
+            ),
+            const _CardDivider(),
+            ListTile(
+              contentPadding: tilePadding,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              minVerticalPadding: 0,
+              title: Text('앱 공유', style: titleStyle),
+              trailing: const Icon(Icons.share),
+              onTap: () => Share.share('QR-Barcode scan 앱을 공유해보세요!'),
+            ),
+            const _CardDivider(),
+            ListTile(
+              contentPadding: tilePadding,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              minVerticalPadding: 0,
+              title: Text('개인정보 보호정책', style: titleStyle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LegalScreen(
+                    title: '개인정보 보호정책',
+                    assetPath: 'assets/legal/privacy_ko.txt',
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        ListTile(
-          contentPadding: tilePadding,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          minVerticalPadding: 0,
-          title: Text('서비스 약관', style: titleStyle),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const LegalScreen(
-                title: '서비스 약관',
-                assetPath: 'assets/legal/terms_ko.txt',
+            const _CardDivider(),
+            ListTile(
+              contentPadding: tilePadding,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              minVerticalPadding: 0,
+              title: Text('서비스 약관', style: titleStyle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LegalScreen(
+                    title: '서비스 약관',
+                    assetPath: 'assets/legal/terms_ko.txt',
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        ListTile(
-          contentPadding: tilePadding,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          minVerticalPadding: 0,
-          title: Text('앱 평가', style: titleStyle),
-          trailing: const Icon(Icons.star_rate),
-          onTap: () => _showPlaceholder(context),
+            const _CardDivider(),
+            ListTile(
+              contentPadding: tilePadding,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              minVerticalPadding: 0,
+              title: Text('앱 평가', style: titleStyle),
+              trailing: const Icon(Icons.star_rate),
+              onTap: () => _showPlaceholder(context),
+            ),
+          ],
         ),
       ],
     );
@@ -294,7 +297,14 @@ class _SwitchTile extends StatelessWidget {
       dense: true,
       visualDensity: VisualDensity.compact,
       title: Text(title, style: titleStyle),
-      subtitle: subtitle == null ? null : Text(subtitle!, style: subtitleStyle),
+      subtitle: subtitle == null
+          ? null
+          : Text(
+              subtitle!,
+              style: subtitleStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
       value: value,
       onChanged: onChanged,
     );

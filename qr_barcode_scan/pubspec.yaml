@@ -53,6 +53,7 @@ dependencies:
   google_fonts: ^6.2.1
   barcode_widget: ^2.0.4
   google_mobile_ads: ^7.0.0
+  android_intent_plus: ^5.0.2
 
 dev_dependencies:
   flutter_test:

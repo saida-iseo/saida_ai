@@ -5,20 +5,19 @@ class AppTheme {
   static const Color accentDark = Color(0xFF1D4ED8);
 
   static ThemeData light() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: accent,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: accent,
-      secondary: const Color(0xFF1D4ED8),
-      surface: const Color(0xFFFFFFFF),
-      surfaceVariant: const Color(0xFFDBEAFE),
-      outline: const Color(0xFFE6EEFF),
-      outlineVariant: const Color(0xFFE6EEFF),
-      background: const Color(0xFFF7FAFF),
-      onSurface: const Color(0xFF0F172A),
-      onBackground: const Color(0xFF0F172A),
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: accent,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: accent,
+          secondary: const Color(0xFF1D4ED8),
+          surface: const Color(0xFFFFFFFF),
+          surfaceContainerHighest: const Color(0xFFDBEAFE),
+          outline: const Color(0xFFE6EEFF),
+          outlineVariant: const Color(0xFFE6EEFF),
+          onSurface: const Color(0xFF0F172A),
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -74,15 +73,39 @@ class AppTheme {
         centerTitle: false,
       ),
       textTheme: const TextTheme(
-        headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-        titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-        titleSmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+        headlineSmall: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF0F172A),
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF0F172A),
+        ),
+        titleMedium: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF0F172A),
+        ),
+        titleSmall: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF0F172A),
+        ),
         bodyLarge: TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
         bodyMedium: TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
         bodySmall: TextStyle(fontSize: 11, color: Color(0xFF475569)),
-        labelMedium: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-        labelSmall: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+        labelMedium: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF0F172A),
+        ),
+        labelSmall: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF475569),
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: const Color(0xFF0F172A),
@@ -95,20 +118,19 @@ class AppTheme {
   }
 
   static ThemeData dark() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: accent,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: accent,
-      secondary: const Color(0xFF1D4ED8),
-      surface: const Color(0xFF101827),
-      surfaceVariant: const Color(0xFF162038),
-      outline: const Color(0xFF1E293B),
-      outlineVariant: const Color(0xFF1E293B),
-      background: const Color(0xFF0B1220),
-      onSurface: const Color(0xFFE2E8F0),
-      onBackground: const Color(0xFFE2E8F0),
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: accent,
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: accent,
+          secondary: const Color(0xFF1D4ED8),
+          surface: const Color(0xFF101827),
+          surfaceContainerHighest: const Color(0xFF162038),
+          outline: const Color(0xFF1E293B),
+          outlineVariant: const Color(0xFF1E293B),
+          onSurface: const Color(0xFFE2E8F0),
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -164,15 +186,39 @@ class AppTheme {
         centerTitle: false,
       ),
       textTheme: const TextTheme(
-        headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFFE2E8F0)),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFFE2E8F0)),
-        titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFFE2E8F0)),
-        titleSmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFE2E8F0)),
+        headlineSmall: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFFE2E8F0),
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFFE2E8F0),
+        ),
+        titleMedium: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFE2E8F0),
+        ),
+        titleSmall: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFE2E8F0),
+        ),
         bodyLarge: TextStyle(fontSize: 14, color: Color(0xFFE2E8F0)),
         bodyMedium: TextStyle(fontSize: 13, color: Color(0xFFE2E8F0)),
         bodySmall: TextStyle(fontSize: 11, color: Color(0xFFCBD5F5)),
-        labelMedium: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFE2E8F0)),
-        labelSmall: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFCBD5F5)),
+        labelMedium: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFE2E8F0),
+        ),
+        labelSmall: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFCBD5F5),
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: const Color(0xFF0B1720),

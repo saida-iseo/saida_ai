@@ -46,7 +46,7 @@ class QrPreviewCard extends StatelessWidget {
               const Text('미리보기', style: TextStyle(fontWeight: FontWeight.w700)),
               const Spacer(),
               Text(
-                payload.isEmpty ? '입력 필요' : '자동 생성됨',
+                payload.isEmpty ? '입력 필요' : '입력 완료됨',
                 style: TextStyle(fontSize: 11, color: scheme.primary),
               ),
             ],
@@ -63,7 +63,7 @@ class QrPreviewCard extends StatelessWidget {
               child: payload.isEmpty
                   ? Center(
                       child: Text(
-                        '유효한 입력 후 자동 생성',
+                        '입력 완료 후 생성',
                         style: TextStyle(color: scheme.onSurface.withOpacity(0.55)),
                       ),
                     )

@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 class ScanOverlay extends StatelessWidget {
@@ -85,53 +83,31 @@ class ScanOverlay extends StatelessWidget {
                 alignment: Alignment.bottomRight,
               ),
               Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.35),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.white.withOpacity(0.18)),
-                        ),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          switchInCurve: Curves.easeOut,
-                          switchOutCurve: Curves.easeIn,
-                          transitionBuilder: (child, animation) {
-                            final offsetTween = Tween<Offset>(
-                              begin: const Offset(0, 0.08),
-                              end: Offset.zero,
-                            );
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(position: animation.drive(offsetTween), child: child),
-                            );
-                          },
-                          child: Text(
-                            label,
-                            key: ValueKey(label),
-                            style: TextStyle(
-                              color: const Color(0xFFEAF2FF),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.45),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            textAlign: TextAlign.center,
+                alignment: Alignment.center,
+                child: Opacity(
+                  opacity: 0.75,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 1),
                           ),
-                        ),
+                        ],
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),

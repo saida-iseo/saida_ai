@@ -31,7 +31,8 @@ Future<void> showQrTypePicker(BuildContext context, QrTypeSelected onSelected) {
                         Expanded(
                           child: Text(
                             'QR 유형 선택',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ),
                         IconButton(
@@ -49,7 +50,10 @@ Future<void> showQrTypePicker(BuildContext context, QrTypeSelected onSelected) {
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           final crossAxisCount = 3;
-                          final cardWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
+                          final cardWidth =
+                              (constraints.maxWidth -
+                                  spacing * (crossAxisCount - 1)) /
+                              crossAxisCount;
                           return GridView.count(
                             crossAxisCount: crossAxisCount,
                             physics: const BouncingScrollPhysics(),
@@ -96,7 +100,7 @@ class _QrTypeCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Ink(
         decoration: BoxDecoration(
-          color: scheme.surfaceVariant.withOpacity(0.7),
+          color: scheme.surfaceContainerHighest.withOpacity(0.7),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: scheme.outlineVariant),
         ),
@@ -126,7 +130,10 @@ class _QrTypeCard extends StatelessWidget {
               maxLines: 2,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: scheme.onSurface.withOpacity(0.65)),
+              style: TextStyle(
+                fontSize: 11,
+                color: scheme.onSurface.withOpacity(0.65),
+              ),
             ),
           ],
         ),

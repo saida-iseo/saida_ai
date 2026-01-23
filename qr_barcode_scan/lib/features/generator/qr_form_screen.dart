@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_design.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_type.dart';
@@ -12,6 +13,7 @@ import 'package:qr_barcode_scan/features/generator/services/payload_builder.dart
 import 'package:qr_barcode_scan/features/generator/services/upload_service.dart';
 import 'package:qr_barcode_scan/features/generator/widgets/design_editor_sheet.dart';
 import 'package:qr_barcode_scan/features/generator/widgets/qr_preview_card.dart';
+import 'package:qr_barcode_scan/storage/local_storage.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -67,36 +69,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
       background: Colors.white,
       pattern: QrPattern.classic,
     );
-    _attachListeners();
-    _tryBuildPayload();
-  }
-
-  void _attachListeners() {
-    final ctrls = [
-      _urlCtrl,
-      _pdfLinkCtrl,
-      _imageLinkCtrl,
-      _videoLinkCtrl,
-      _vNameCtrl,
-      _vPhoneCtrl,
-      _vOrgCtrl,
-      _vTitleCtrl,
-      _vEmailCtrl,
-      _vWebsiteCtrl,
-      _vAddressCtrl,
-      _fbUrlCtrl,
-      _fbTitleCtrl,
-      _fbDescCtrl,
-      _igUserCtrl,
-      _waPhoneCtrl,
-      _appAndroidCtrl,
-      _appIosCtrl,
-      _wifiSsidCtrl,
-      _wifiPassCtrl,
-    ];
-    for (final c in ctrls) {
-      c.addListener(_tryBuildPayload);
-    }
   }
 
   @override
@@ -132,16 +104,21 @@ class _QrFormScreenState extends State<QrFormScreen> {
   Widget build(BuildContext context) {
     final meta = metaOf(widget.type);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(meta.name),
-      ),
+      appBar: AppBar(title: Text(meta.name)),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.of(context).viewInsets.bottom),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                24 + MediaQuery.of(context).viewInsets.bottom,
+              ),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 12),
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 12,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -151,7 +128,15 @@ class _QrFormScreenState extends State<QrFormScreen> {
                     ),
                     const SizedBox(height: 14),
                     _buildForm(context),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _applyPayload,
+                        child: const Text('입력 완료'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     _buildActionRow(context),
                   ],
                 ),
@@ -193,7 +178,11 @@ class _QrFormScreenState extends State<QrFormScreen> {
   Widget _buildForm(BuildContext context) {
     switch (widget.type) {
       case QrType.website:
-        return _buildSingleUrlField('웹사이트 주소 (입력 필요)', _urlCtrl, 'https://example.com');
+        return _buildSingleUrlField(
+          '웹사이트 주소 (입력 필요)',
+          _urlCtrl,
+          'https://example.com',
+        );
       case QrType.pdf:
         return _buildPdfForm();
       case QrType.vcard:
@@ -215,7 +204,11 @@ class _QrFormScreenState extends State<QrFormScreen> {
     }
   }
 
-  Widget _buildSingleUrlField(String label, TextEditingController controller, String hint) {
+  Widget _buildSingleUrlField(
+    String label,
+    TextEditingController controller,
+    String hint,
+  ) {
     return _FieldCard(
       children: [
         _Label(label),
@@ -246,13 +239,13 @@ class _QrFormScreenState extends State<QrFormScreen> {
               onPressed: _uploading
                   ? null
                   : () => _pickAndUpload(
-                        extensions: ['pdf'],
-                        maxBytes: 100 * 1024 * 1024,
-                        onUrl: (url) {
-                          _uploadedPdfUrl = url;
-                          _pdfLinkCtrl.text = url;
-                        },
-                      ),
+                      extensions: ['pdf'],
+                      maxBytes: 100 * 1024 * 1024,
+                      onUrl: (url) {
+                        _uploadedPdfUrl = url;
+                        _pdfLinkCtrl.text = url;
+                      },
+                    ),
               icon: const Icon(Icons.upload_file),
               label: Text(_uploading ? '업로드 중...' : 'PDF 업로드'),
             ),
@@ -293,14 +286,14 @@ class _QrFormScreenState extends State<QrFormScreen> {
               onPressed: _uploading
                   ? null
                   : () => _pickAndUpload(
-                        extensions: ['png', 'jpg', 'jpeg', 'webp'],
-                        maxBytes: 100 * 1024 * 1024,
-                        allowMemoryUpload: true,
-                        onUrl: (url) {
-                          _uploadedImageUrl = url;
-                          _imageLinkCtrl.text = url;
-                        },
-                      ),
+                      extensions: ['png', 'jpg', 'jpeg', 'webp'],
+                      maxBytes: 100 * 1024 * 1024,
+                      allowMemoryUpload: true,
+                      onUrl: (url) {
+                        _uploadedImageUrl = url;
+                        _imageLinkCtrl.text = url;
+                      },
+                    ),
               icon: const Icon(Icons.photo_library_outlined),
               label: Text(_uploading ? '업로드 중...' : '이미지 업로드'),
             ),
@@ -316,7 +309,10 @@ class _QrFormScreenState extends State<QrFormScreen> {
           ],
         ),
         const SizedBox(height: 6),
-        const Text('업로드 또는 공유 링크를 입력하세요.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text(
+          '업로드 또는 공유 링크를 입력하세요.',
+          style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
       ],
     );
   }
@@ -332,7 +328,10 @@ class _QrFormScreenState extends State<QrFormScreen> {
           keyboardType: TextInputType.url,
         ),
         const SizedBox(height: 6),
-        const Text('영상/채널 링크를 입력하세요.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text(
+          '영상/채널 링크를 입력하세요.',
+          style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
       ],
     );
   }
@@ -346,7 +345,11 @@ class _QrFormScreenState extends State<QrFormScreen> {
         const SizedBox(height: 10),
         _Label('전화번호*'),
         const SizedBox(height: 6),
-        TextField(controller: _vPhoneCtrl, decoration: _inputDecoration('010-1234-5678'), keyboardType: TextInputType.phone),
+        TextField(
+          controller: _vPhoneCtrl,
+          decoration: _inputDecoration('010-1234-5678'),
+          keyboardType: TextInputType.phone,
+        ),
         const SizedBox(height: 10),
         _Label('회사/직책'),
         const SizedBox(height: 6),
@@ -358,15 +361,26 @@ class _QrFormScreenState extends State<QrFormScreen> {
         const SizedBox(height: 10),
         _Label('이메일'),
         const SizedBox(height: 6),
-        TextField(controller: _vEmailCtrl, decoration: _inputDecoration('you@example.com'), keyboardType: TextInputType.emailAddress),
+        TextField(
+          controller: _vEmailCtrl,
+          decoration: _inputDecoration('you@example.com'),
+          keyboardType: TextInputType.emailAddress,
+        ),
         const SizedBox(height: 10),
         _Label('웹사이트'),
         const SizedBox(height: 6),
-        TextField(controller: _vWebsiteCtrl, decoration: _inputDecoration('https://example.com'), keyboardType: TextInputType.url),
+        TextField(
+          controller: _vWebsiteCtrl,
+          decoration: _inputDecoration('https://example.com'),
+          keyboardType: TextInputType.url,
+        ),
         const SizedBox(height: 10),
         _Label('주소'),
         const SizedBox(height: 6),
-        TextField(controller: _vAddressCtrl, decoration: _inputDecoration('서울시 ...')),
+        TextField(
+          controller: _vAddressCtrl,
+          decoration: _inputDecoration('서울시 ...'),
+        ),
       ],
     );
   }
@@ -376,15 +390,26 @@ class _QrFormScreenState extends State<QrFormScreen> {
       children: [
         _Label('Facebook URL*'),
         const SizedBox(height: 6),
-        TextField(controller: _fbUrlCtrl, decoration: _inputDecoration('https://facebook.com/...'), keyboardType: TextInputType.url),
+        TextField(
+          controller: _fbUrlCtrl,
+          decoration: _inputDecoration('https://facebook.com/...'),
+          keyboardType: TextInputType.url,
+        ),
         const SizedBox(height: 10),
         _Label('제목*'),
         const SizedBox(height: 6),
-        TextField(controller: _fbTitleCtrl, decoration: _inputDecoration('안녕하세요')),
+        TextField(
+          controller: _fbTitleCtrl,
+          decoration: _inputDecoration('안녕하세요'),
+        ),
         const SizedBox(height: 10),
         _Label('설명'),
         const SizedBox(height: 6),
-        TextField(controller: _fbDescCtrl, decoration: _inputDecoration('팔로우 또는 좋아요 버튼을 클릭하세요'), maxLines: 2),
+        TextField(
+          controller: _fbDescCtrl,
+          decoration: _inputDecoration('팔로우 또는 좋아요 버튼을 클릭하세요'),
+          maxLines: 2,
+        ),
       ],
     );
   }
@@ -394,9 +419,15 @@ class _QrFormScreenState extends State<QrFormScreen> {
       children: [
         _Label('@사용자 이름*'),
         const SizedBox(height: 6),
-        TextField(controller: _igUserCtrl, decoration: _inputDecoration('@username')),
+        TextField(
+          controller: _igUserCtrl,
+          decoration: _inputDecoration('@username'),
+        ),
         const SizedBox(height: 6),
-        const Text('입력 시 자동으로 https://www.instagram.com/username/ 로 변환됩니다.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text(
+          '입력 시 자동으로 https://www.instagram.com/username/ 로 변환됩니다.',
+          style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
       ],
     );
   }
@@ -406,9 +437,16 @@ class _QrFormScreenState extends State<QrFormScreen> {
       children: [
         _Label('전화번호* (국가코드 포함 권장)'),
         const SizedBox(height: 6),
-        TextField(controller: _waPhoneCtrl, decoration: _inputDecoration('+821012345678'), keyboardType: TextInputType.phone),
+        TextField(
+          controller: _waPhoneCtrl,
+          decoration: _inputDecoration('+821012345678'),
+          keyboardType: TextInputType.phone,
+        ),
         const SizedBox(height: 6),
-        const Text('숫자/+, 공백 제거 후 wa.me 링크로 변환됩니다.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text(
+          '숫자/+, 공백 제거 후 wa.me 링크로 변환됩니다.',
+          style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
       ],
     );
   }
@@ -418,13 +456,24 @@ class _QrFormScreenState extends State<QrFormScreen> {
       children: [
         _Label('구글 플레이 URL'),
         const SizedBox(height: 6),
-        TextField(controller: _appAndroidCtrl, decoration: _inputDecoration('https://play.google.com/...'), keyboardType: TextInputType.url),
+        TextField(
+          controller: _appAndroidCtrl,
+          decoration: _inputDecoration('https://play.google.com/...'),
+          keyboardType: TextInputType.url,
+        ),
         const SizedBox(height: 10),
         _Label('애플 앱스토어 URL'),
         const SizedBox(height: 6),
-        TextField(controller: _appIosCtrl, decoration: _inputDecoration('https://apps.apple.com/...'), keyboardType: TextInputType.url),
+        TextField(
+          controller: _appIosCtrl,
+          decoration: _inputDecoration('https://apps.apple.com/...'),
+          keyboardType: TextInputType.url,
+        ),
         const SizedBox(height: 6),
-        const Text('플레이스토어 또는 앱스토어 링크 중 하나 이상 입력하세요.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text(
+          '플레이스토어 또는 앱스토어 링크 중 하나 이상 입력하세요.',
+          style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
       ],
     );
   }
@@ -434,12 +483,15 @@ class _QrFormScreenState extends State<QrFormScreen> {
       children: [
         _Label('네트워크 이름 (SSID)*'),
         const SizedBox(height: 6),
-        TextField(controller: _wifiSsidCtrl, decoration: _inputDecoration('MyWiFi')),
+        TextField(
+          controller: _wifiSsidCtrl,
+          decoration: _inputDecoration('MyWiFi'),
+        ),
         const SizedBox(height: 10),
         _Label('암호화 방식'),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: _wifiSecurity,
+          initialValue: _wifiSecurity,
           decoration: _inputDecoration(null),
           items: const [
             DropdownMenuItem(value: 'WPA', child: Text('WPA/WPA2')),
@@ -452,7 +504,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
             setState(() {
               _wifiSecurity = value;
               if (value == 'nopass') _wifiPassCtrl.clear();
-              _tryBuildPayload();
             });
           },
         ),
@@ -463,12 +514,21 @@ class _QrFormScreenState extends State<QrFormScreen> {
           controller: _wifiPassCtrl,
           enabled: _wifiSecurity != 'nopass',
           obscureText: !_wifiPassVisible,
-          decoration: _inputDecoration(_wifiSecurity == 'nopass' ? '비밀번호 없음 선택됨' : '비밀번호 입력').copyWith(
-            suffixIcon: IconButton(
-              icon: Icon(_wifiPassVisible ? Icons.visibility : Icons.visibility_off),
-              onPressed: _wifiSecurity == 'nopass' ? null : () => setState(() => _wifiPassVisible = !_wifiPassVisible),
-            ),
-          ),
+          decoration:
+              _inputDecoration(
+                _wifiSecurity == 'nopass' ? '비밀번호 없음 선택됨' : '비밀번호 입력',
+              ).copyWith(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _wifiPassVisible ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: _wifiSecurity == 'nopass'
+                      ? null
+                      : () => setState(
+                          () => _wifiPassVisible = !_wifiPassVisible,
+                        ),
+                ),
+              ),
         ),
         const SizedBox(height: 8),
         Row(
@@ -479,7 +539,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
               value: _wifiHidden,
               onChanged: (v) => setState(() {
                 _wifiHidden = v;
-                _tryBuildPayload();
               }),
             ),
           ],
@@ -493,15 +552,20 @@ class _QrFormScreenState extends State<QrFormScreen> {
       hintText: hint,
       isDense: true,
       filled: true,
-      fillColor: Theme.of(context).colorScheme.surfaceVariant,
-      border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(14)),
+      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      border: OutlineInputBorder(
+        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(14),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     );
   }
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickAndUpload({
@@ -541,11 +605,10 @@ class _QrFormScreenState extends State<QrFormScreen> {
       setState(() {
         _uploading = false;
       });
-      _tryBuildPayload();
     }
   }
 
-  void _tryBuildPayload() {
+  PayloadBuildResult? _buildPayload() {
     Map<String, dynamic> data;
     switch (widget.type) {
       case QrType.website:
@@ -602,9 +665,19 @@ class _QrFormScreenState extends State<QrFormScreen> {
         break;
     }
 
-    final result = QrPayloadBuilder.build(widget.type, data);
+    return QrPayloadBuilder.build(widget.type, data);
+  }
+
+  void _applyPayload() {
+    final result = _buildPayload();
+    if (result == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('필수 입력을 확인해주세요.')));
+      return;
+    }
     setState(() {
-      _payload = result?.payload ?? '';
+      _payload = result.payload;
     });
   }
 
@@ -615,7 +688,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
     return 'https://$text';
   }
 
-
   Future<void> _openDesignEditor() async {
     final updated = await showDesignEditor(context: context, initial: _design);
     if (updated != null) {
@@ -624,7 +696,8 @@ class _QrFormScreenState extends State<QrFormScreen> {
   }
 
   Future<Uint8List?> _captureQrPng() async {
-    final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    final boundary =
+        _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) return null;
     final image = await boundary.toImage(pixelRatio: 3);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -632,6 +705,7 @@ class _QrFormScreenState extends State<QrFormScreen> {
   }
 
   Future<void> _shareQr() async {
+    _playFeedback();
     final bytes = await _captureQrPng();
     if (bytes == null) return;
     final tempDir = await getTemporaryDirectory();
@@ -641,6 +715,7 @@ class _QrFormScreenState extends State<QrFormScreen> {
   }
 
   Future<void> _saveQr() async {
+    _playFeedback();
     final bytes = await _captureQrPng();
     if (bytes == null) return;
     if (Platform.isIOS) {
@@ -648,12 +723,26 @@ class _QrFormScreenState extends State<QrFormScreen> {
     } else {
       await Permission.storage.request();
     }
-    final result = await ImageGallerySaver.saveImage(bytes, quality: 100, name: 'qr_code');
+    final result = await ImageGallerySaver.saveImage(
+      bytes,
+      quality: 100,
+      name: 'qr_code',
+    );
     if (!mounted) return;
     final success = (result['isSuccess'] as bool?) ?? false;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(success ? '갤러리에 저장했습니다.' : '저장에 실패했습니다.')),
     );
+  }
+
+  void _playFeedback() {
+    final settings = LocalStorage.loadSettings();
+    if (settings.vibrate) {
+      HapticFeedback.lightImpact();
+    }
+    if (settings.sound) {
+      SystemSound.play(SystemSoundType.click);
+    }
   }
 }
 

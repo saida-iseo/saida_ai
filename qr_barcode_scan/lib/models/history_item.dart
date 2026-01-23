@@ -11,6 +11,7 @@ class HistoryItem {
     required this.type,
     required this.value,
     required this.createdAt,
+    this.isFavorite = false,
     this.meta,
   });
 
@@ -19,6 +20,7 @@ class HistoryItem {
   final PayloadType type;
   final String value;
   final DateTime createdAt;
+  final bool isFavorite;
   final Map<String, dynamic>? meta;
 
   Map<String, dynamic> toMap() {
@@ -28,6 +30,7 @@ class HistoryItem {
       'type': type.name,
       'value': value,
       'createdAt': createdAt.toIso8601String(),
+      'isFavorite': isFavorite,
       'meta': meta,
     };
   }
@@ -45,7 +48,28 @@ class HistoryItem {
       ),
       value: map['value'] as String,
       createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+      isFavorite: map['isFavorite'] as bool? ?? false,
       meta: (map['meta'] as Map?)?.cast<String, dynamic>(),
+    );
+  }
+
+  HistoryItem copyWith({
+    String? id,
+    HistorySource? source,
+    PayloadType? type,
+    String? value,
+    DateTime? createdAt,
+    bool? isFavorite,
+    Map<String, dynamic>? meta,
+  }) {
+    return HistoryItem(
+      id: id ?? this.id,
+      source: source ?? this.source,
+      type: type ?? this.type,
+      value: value ?? this.value,
+      createdAt: createdAt ?? this.createdAt,
+      isFavorite: isFavorite ?? this.isFavorite,
+      meta: meta ?? this.meta,
     );
   }
 
