@@ -52,6 +52,7 @@ dependencies:
   flutter_colorpicker: ^1.0.3
   google_fonts: ^6.2.1
   barcode_widget: ^2.0.4
+  google_mobile_ads: ^7.0.0
 
 dev_dependencies:
   flutter_test:
@@ -82,11 +83,12 @@ flutter:
   assets:
     - assets/legal/privacy_ko.txt
     - assets/legal/terms_ko.txt
+    - assets/icon/saida_logo.png
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icon/app_icon.png
+  image_path: assets/icon/saida_logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_design.dart';
@@ -30,7 +29,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
   late QrDesign _design;
   final _uploadService = UploadService();
   String _payload = '';
-  String? _error;
   bool _uploading = false;
   final GlobalKey _qrKey = GlobalKey();
 
@@ -51,8 +49,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
   final _fbDescCtrl = TextEditingController(text: '팔로우 또는 좋아요 버튼을 클릭하세요');
   final _igUserCtrl = TextEditingController();
   final _waPhoneCtrl = TextEditingController();
-  final _appNameCtrl = TextEditingController();
-  final _appDescCtrl = TextEditingController();
   final _appAndroidCtrl = TextEditingController();
   final _appIosCtrl = TextEditingController();
   final _wifiSsidCtrl = TextEditingController();
@@ -62,7 +58,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
   bool _wifiPassVisible = false;
   String? _uploadedPdfUrl;
   String? _uploadedImageUrl;
-  String? _uploadedVideoUrl;
 
   @override
   void initState() {
@@ -94,8 +89,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
       _fbDescCtrl,
       _igUserCtrl,
       _waPhoneCtrl,
-      _appNameCtrl,
-      _appDescCtrl,
       _appAndroidCtrl,
       _appIosCtrl,
       _wifiSsidCtrl,
@@ -125,8 +118,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
       _fbDescCtrl,
       _igUserCtrl,
       _waPhoneCtrl,
-      _appNameCtrl,
-      _appDescCtrl,
       _appAndroidCtrl,
       _appIosCtrl,
       _wifiSsidCtrl,
@@ -160,10 +151,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
                     ),
                     const SizedBox(height: 14),
                     _buildForm(context),
-                    if (_error != null) ...[
-                      const SizedBox(height: 10),
-                      _errorBanner(context, _error!),
-                    ],
                     const SizedBox(height: 16),
                     _buildActionRow(context),
                   ],
@@ -223,8 +210,8 @@ class _QrFormScreenState extends State<QrFormScreen> {
         return _buildAppRedirectForm();
       case QrType.wifi:
         return _buildWifiForm();
-      case QrType.video:
-        return _buildVideoForm();
+      case QrType.youtube:
+        return _buildYoutubeForm();
     }
   }
 
@@ -256,7 +243,16 @@ class _QrFormScreenState extends State<QrFormScreen> {
         Row(
           children: [
             ElevatedButton.icon(
-              onPressed: _uploading ? null : () => _pickAndUpload(extensions: ['pdf'], maxBytes: 100 * 1024 * 1024, onUrl: (url) => _uploadedPdfUrl = url),
+              onPressed: _uploading
+                  ? null
+                  : () => _pickAndUpload(
+                        extensions: ['pdf'],
+                        maxBytes: 100 * 1024 * 1024,
+                        onUrl: (url) {
+                          _uploadedPdfUrl = url;
+                          _pdfLinkCtrl.text = url;
+                        },
+                      ),
               icon: const Icon(Icons.upload_file),
               label: Text(_uploading ? '업로드 중...' : 'PDF 업로드'),
             ),
@@ -294,7 +290,17 @@ class _QrFormScreenState extends State<QrFormScreen> {
         Row(
           children: [
             ElevatedButton.icon(
-              onPressed: _uploading ? null : () => _pickAndUpload(extensions: ['png', 'jpg', 'jpeg', 'webp'], maxBytes: 100 * 1024 * 1024, onUrl: (url) => _uploadedImageUrl = url),
+              onPressed: _uploading
+                  ? null
+                  : () => _pickAndUpload(
+                        extensions: ['png', 'jpg', 'jpeg', 'webp'],
+                        maxBytes: 100 * 1024 * 1024,
+                        allowMemoryUpload: true,
+                        onUrl: (url) {
+                          _uploadedImageUrl = url;
+                          _imageLinkCtrl.text = url;
+                        },
+                      ),
               icon: const Icon(Icons.photo_library_outlined),
               label: Text(_uploading ? '업로드 중...' : '이미지 업로드'),
             ),
@@ -315,37 +321,18 @@ class _QrFormScreenState extends State<QrFormScreen> {
     );
   }
 
-  Widget _buildVideoForm() {
+  Widget _buildYoutubeForm() {
     return _FieldCard(
       children: [
-        _Label('동영상 URL'),
+        _Label('YouTube URL'),
         const SizedBox(height: 6),
         TextField(
           controller: _videoLinkCtrl,
           decoration: _inputDecoration('https://youtu.be/...'),
           keyboardType: TextInputType.url,
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _uploading ? null : () => _pickAndUpload(extensions: ['mp4', 'mov', 'avi', 'mkv'], maxBytes: 250 * 1024 * 1024, onUrl: (url) => _uploadedVideoUrl = url),
-              icon: const Icon(Icons.upload_rounded),
-              label: Text(_uploading ? '업로드 중...' : '동영상 업로드'),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _uploadedVideoUrl ?? '선택된 파일 없음',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-          ],
-        ),
         const SizedBox(height: 6),
-        const Text('250MB 이하, 업로드 또는 URL 중 택1', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text('영상/채널 링크를 입력하세요.', style: TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -429,14 +416,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
   Widget _buildAppRedirectForm() {
     return _FieldCard(
       children: [
-        _Label('앱 이름*'),
-        const SizedBox(height: 6),
-        TextField(controller: _appNameCtrl, decoration: _inputDecoration('예: MyGreatApp')),
-        const SizedBox(height: 10),
-        _Label('설명'),
-        const SizedBox(height: 6),
-        TextField(controller: _appDescCtrl, decoration: _inputDecoration('앱 소개 한 줄'), maxLines: 2),
-        const SizedBox(height: 10),
         _Label('구글 플레이 URL'),
         const SizedBox(height: 6),
         TextField(controller: _appAndroidCtrl, decoration: _inputDecoration('https://play.google.com/...'), keyboardType: TextInputType.url),
@@ -445,7 +424,7 @@ class _QrFormScreenState extends State<QrFormScreen> {
         const SizedBox(height: 6),
         TextField(controller: _appIosCtrl, decoration: _inputDecoration('https://apps.apple.com/...'), keyboardType: TextInputType.url),
         const SizedBox(height: 6),
-        const Text('둘 다 입력 시 자동으로 신규 랜딩 페이지 링크를 생성합니다.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const Text('플레이스토어 또는 앱스토어 링크 중 하나 이상 입력하세요.', style: TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -520,53 +499,44 @@ class _QrFormScreenState extends State<QrFormScreen> {
     );
   }
 
-  Widget _errorBanner(BuildContext context, String message) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.error.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.error),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.error,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickAndUpload({
     required List<String> extensions,
     required int maxBytes,
     required ValueChanged<String> onUrl,
+    bool allowMemoryUpload = false,
   }) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: extensions,
-      withData: false,
+      withData: allowMemoryUpload,
     );
     if (result == null || result.files.isEmpty) return;
     final file = result.files.single;
     if (file.size > maxBytes) {
-      setState(() => _error = '파일 크기가 제한을 초과했습니다.');
-      return;
-    }
-    if (file.path == null) {
-      setState(() => _error = '파일 경로를 찾을 수 없습니다.');
+      _showSnack('파일 크기가 제한을 초과했습니다.');
       return;
     }
     setState(() {
       _uploading = true;
-      _error = null;
     });
     try {
-      final url = await _uploadService.uploadFile(File(file.path!));
+      String url;
+      if (file.path != null) {
+        url = await _uploadService.uploadFile(File(file.path!));
+      } else if (allowMemoryUpload && file.bytes != null) {
+        url = await _uploadService.uploadBytes(file.bytes!, file.name);
+      } else {
+        _showSnack('파일 경로를 찾을 수 없습니다.');
+        return;
+      }
       onUrl(url);
     } catch (e) {
-      setState(() => _error = '업로드에 실패했습니다. 다시 시도해 주세요.');
+      _showSnack('업로드에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setState(() {
         _uploading = false;
@@ -587,8 +557,8 @@ class _QrFormScreenState extends State<QrFormScreen> {
       case QrType.image:
         data = {'url': _uploadedImageUrl ?? _sanitizeUrl(_imageLinkCtrl.text)};
         break;
-      case QrType.video:
-        data = {'url': _uploadedVideoUrl ?? _sanitizeUrl(_videoLinkCtrl.text)};
+      case QrType.youtube:
+        data = {'url': _sanitizeUrl(_videoLinkCtrl.text)};
         break;
       case QrType.vcard:
         data = {
@@ -616,8 +586,8 @@ class _QrFormScreenState extends State<QrFormScreen> {
         break;
       case QrType.appRedirect:
         data = {
-          'name': _appNameCtrl.text.trim(),
-          'description': _appDescCtrl.text.trim(),
+          'name': '',
+          'description': '',
           'androidUrl': _sanitizeUrl(_appAndroidCtrl.text),
           'iosUrl': _sanitizeUrl(_appIosCtrl.text),
         };
@@ -635,60 +605,7 @@ class _QrFormScreenState extends State<QrFormScreen> {
     final result = QrPayloadBuilder.build(widget.type, data);
     setState(() {
       _payload = result?.payload ?? '';
-      _error = _validate(data);
     });
-  }
-
-  String? _validate(Map<String, dynamic> data) {
-    switch (widget.type) {
-      case QrType.website:
-        if (!_isValidHttp(data['url'] as String? ?? '')) return 'http/https 링크를 입력해 주세요.';
-        return null;
-      case QrType.pdf:
-        if ((data['url'] as String? ?? '').isEmpty) return 'PDF 링크 또는 업로드를 완료해 주세요.';
-        return null;
-      case QrType.image:
-        if ((data['url'] as String? ?? '').isEmpty) return '이미지 링크 또는 업로드를 완료해 주세요.';
-        return null;
-      case QrType.video:
-        if ((data['url'] as String? ?? '').isEmpty) return '동영상 URL 또는 업로드를 완료해 주세요.';
-        return null;
-      case QrType.vcard:
-        if ((data['name'] as String).isEmpty) return '이름은 필수입니다.';
-        if ((data['phone'] as String).isEmpty) return '전화번호는 필수입니다.';
-        return null;
-      case QrType.facebook:
-        if (!_isValidHttp(data['url'] as String? ?? '')) return '올바른 Facebook URL을 입력하세요.';
-        if ((data['title'] as String).isEmpty) return '제목을 입력하세요.';
-        return null;
-      case QrType.instagram:
-        final username = (data['username'] as String).replaceAll('@', '').trim();
-        final valid = RegExp(r'^[A-Za-z0-9._]+$').hasMatch(username) && username.isNotEmpty;
-        if (!valid) return '유효한 사용자 이름을 입력하세요.';
-        return null;
-      case QrType.whatsapp:
-        final phone = (data['phone'] as String).replaceAll(RegExp(r'[^0-9+]'), '');
-        if (phone.length < 6) return '전화번호를 다시 확인해 주세요.';
-        return null;
-      case QrType.appRedirect:
-        if ((data['name'] as String).isEmpty) return '앱 이름을 입력하세요.';
-        if ((data['androidUrl'] as String).isEmpty && (data['iosUrl'] as String).isEmpty) {
-          return '플레이스토어 또는 앱스토어 URL 중 하나 이상 입력하세요.';
-        }
-        if ((data['androidUrl'] as String).isNotEmpty && !_isValidHttp(data['androidUrl'])) {
-          return '플레이스토어 URL이 올바르지 않습니다.';
-        }
-        if ((data['iosUrl'] as String).isNotEmpty && !_isValidHttp(data['iosUrl'])) {
-          return '앱스토어 URL이 올바르지 않습니다.';
-        }
-        return null;
-      case QrType.wifi:
-        if ((data['ssid'] as String).isEmpty) return 'SSID를 입력하세요.';
-        if (data['security'] != 'nopass' && (data['password'] as String).isEmpty) {
-          return '선택한 보안 방식에는 비밀번호가 필요합니다.';
-        }
-        return null;
-    }
   }
 
   String _sanitizeUrl(String input) {
@@ -698,11 +615,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
     return 'https://$text';
   }
 
-  bool _isValidHttp(String url) {
-    if (url.isEmpty) return false;
-    final uri = Uri.tryParse(url);
-    return uri != null && (uri.isScheme('http') || uri.isScheme('https')) && uri.host.isNotEmpty;
-  }
 
   Future<void> _openDesignEditor() async {
     final updated = await showDesignEditor(context: context, initial: _design);

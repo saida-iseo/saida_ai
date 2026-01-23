@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:mime/mime.dart';
@@ -16,11 +18,38 @@ class UploadService {
     final mediaType = MediaType.parse(mimeType);
     final request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('file', file.path, contentType: mediaType));
+    return _sendRequest(request);
+  }
+
+  Future<String> uploadBytes(Uint8List bytes, String filename) async {
+    final uri = Uri.parse('${BackendConfig.baseUrl}${BackendConfig.uploadEndpoint}');
+    final mimeType = lookupMimeType(filename) ?? 'application/octet-stream';
+    final mediaType = MediaType.parse(mimeType);
+    final request = http.MultipartRequest('POST', uri)
+      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename, contentType: mediaType));
+    return _sendRequest(request);
+  }
+
+  Future<String> _sendRequest(http.MultipartRequest request) async {
     final streamed = await _client.send(request);
     final response = await http.Response.fromStream(streamed);
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final url = response.body.trim();
-      if (url.startsWith('http')) return url;
+      final body = response.body.trim();
+      if (body.startsWith('http')) return body;
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map) {
+          final direct = decoded['url'];
+          if (direct is String && direct.startsWith('http')) return direct;
+          final data = decoded['data'];
+          if (data is Map) {
+            final nested = data['url'];
+            if (nested is String && nested.startsWith('http')) return nested;
+          }
+        }
+      } catch (_) {
+        // Ignore JSON parse errors and fall through.
+      }
     }
     throw Exception('업로드에 실패했습니다. (${response.statusCode})');
   }

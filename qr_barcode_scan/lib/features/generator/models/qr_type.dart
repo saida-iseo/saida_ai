@@ -10,7 +10,7 @@ enum QrType {
   whatsapp,
   appRedirect,
   wifi,
-  video,
+  youtube,
 }
 
 class QrTypeMeta {
@@ -35,16 +35,10 @@ const List<QrTypeMeta> qrTypes = [
     icon: Icons.public_rounded,
   ),
   QrTypeMeta(
-    type: QrType.pdf,
-    name: 'PDF',
-    description: '문서 링크/업로드',
-    icon: Icons.picture_as_pdf,
-  ),
-  QrTypeMeta(
-    type: QrType.vcard,
-    name: 'vCard',
-    description: '전자명함 공유',
-    icon: Icons.badge_outlined,
+    type: QrType.wifi,
+    name: '와이파이',
+    description: 'SSID/비밀번호 공유',
+    icon: Icons.wifi_rounded,
   ),
   QrTypeMeta(
     type: QrType.image,
@@ -53,16 +47,16 @@ const List<QrTypeMeta> qrTypes = [
     icon: Icons.image_outlined,
   ),
   QrTypeMeta(
-    type: QrType.facebook,
-    name: 'Facebook',
-    description: '페이지/포스트 연결',
-    icon: Icons.facebook,
-  ),
-  QrTypeMeta(
     type: QrType.instagram,
     name: 'Instagram',
     description: '@username 프로필',
     icon: Icons.camera_alt_outlined,
+  ),
+  QrTypeMeta(
+    type: QrType.facebook,
+    name: 'Facebook',
+    description: '페이지/포스트 연결',
+    icon: Icons.facebook,
   ),
   QrTypeMeta(
     type: QrType.whatsapp,
@@ -71,22 +65,28 @@ const List<QrTypeMeta> qrTypes = [
     icon: Icons.chat_rounded,
   ),
   QrTypeMeta(
+    type: QrType.youtube,
+    name: 'YouTube',
+    description: '채널/영상 링크',
+    icon: Icons.play_circle_fill_rounded,
+  ),
+  QrTypeMeta(
+    type: QrType.vcard,
+    name: 'vCard',
+    description: '전자명함 공유',
+    icon: Icons.badge_outlined,
+  ),
+  QrTypeMeta(
     type: QrType.appRedirect,
     name: '앱 설치',
     description: '스토어로 연결',
     icon: Icons.apps_rounded,
   ),
   QrTypeMeta(
-    type: QrType.wifi,
-    name: '와이파이',
-    description: 'SSID/비밀번호 공유',
-    icon: Icons.wifi_rounded,
-  ),
-  QrTypeMeta(
-    type: QrType.video,
-    name: '동영상',
-    description: '업로드 또는 URL',
-    icon: Icons.smart_display_rounded,
+    type: QrType.pdf,
+    name: 'PDF',
+    description: '문서 링크/업로드',
+    icon: Icons.picture_as_pdf,
   ),
 ];
 

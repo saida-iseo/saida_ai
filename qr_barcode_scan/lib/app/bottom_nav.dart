@@ -6,7 +6,7 @@ import 'package:qr_barcode_scan/features/history/history_screen.dart';
 import 'package:qr_barcode_scan/features/scanner/scanner_screen.dart';
 import 'package:qr_barcode_scan/features/settings/settings_screen.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
-import 'package:qr_barcode_scan/ui/widgets/ad_placeholder.dart';
+import 'package:qr_barcode_scan/ui/widgets/ad_banner.dart';
 
 final navIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -82,7 +82,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
         bottom: false,
         child: Column(
           children: [
-            if (index >= 2) const AdPlaceholder(),
+            if (index >= 1) const AdBanner(),
             Expanded(child: screens[index]),
           ],
         ),
@@ -101,7 +101,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
               ),
             ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -161,7 +161,7 @@ class _NavItem extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
             color: selected
                 ? colorScheme.primary.withOpacity(0.12)
@@ -172,19 +172,19 @@ class _NavItem extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                height: 36,
-                width: 36,
+                height: 32,
+                width: 32,
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceVariant,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 18),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: selected ? FontWeight.bold : FontWeight.w500,
                   color: color,
                 ),

@@ -53,7 +53,12 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const _SplashQrMark(),
+                  Image.asset(
+                    'assets/icon/saida_logo.png',
+                    width: 160,
+                    height: 160,
+                    fit: BoxFit.contain,
+                  ),
                   const SizedBox(height: 18),
                   Text(
                     'saida qr scanner',
@@ -68,59 +73,6 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SplashQrMark extends StatelessWidget {
-  const _SplashQrMark();
-
-  static const _pattern = [
-    1, 1, 1, 0, 1, 0, 1,
-    1, 0, 1, 0, 1, 0, 1,
-    1, 1, 1, 0, 1, 1, 1,
-    0, 0, 0, 0, 0, 0, 0,
-    1, 1, 1, 0, 1, 1, 0,
-    1, 0, 1, 0, 0, 1, 0,
-    1, 1, 1, 0, 1, 0, 1,
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 160,
-      height: 160,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 7,
-          crossAxisSpacing: 4,
-          mainAxisSpacing: 4,
-        ),
-        itemCount: _pattern.length,
-        itemBuilder: (context, index) {
-          final filled = _pattern[index] == 1;
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 240),
-            decoration: BoxDecoration(
-              color: filled ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          );
-        },
       ),
     );
   }

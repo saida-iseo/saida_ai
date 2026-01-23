@@ -26,10 +26,10 @@ class QrPayloadBuilder {
         final url = data['url'] as String? ?? '';
         if (url.isEmpty) return null;
         return PayloadBuildResult(payload: url, displayMeta: {'label': '이미지', 'url': url});
-      case QrType.video:
+      case QrType.youtube:
         final url = data['url'] as String? ?? '';
         if (url.isEmpty) return null;
-        return PayloadBuildResult(payload: url, displayMeta: {'label': '동영상', 'url': url});
+        return PayloadBuildResult(payload: url, displayMeta: {'label': 'YouTube', 'url': url});
       case QrType.vcard:
         final name = data['name'] as String? ?? '';
         final phone = data['phone'] as String? ?? '';
@@ -76,15 +76,16 @@ class QrPayloadBuilder {
         final url = 'https://wa.me/$phone';
         return PayloadBuildResult(payload: url, displayMeta: {'label': 'WhatsApp', 'phone': phone});
       case QrType.appRedirect:
-        final name = data['name'] as String? ?? '';
+        final name = (data['name'] as String? ?? '').trim();
         final androidUrl = data['androidUrl'] as String? ?? '';
         final iosUrl = data['iosUrl'] as String? ?? '';
-        if (name.isEmpty || (androidUrl.isEmpty && iosUrl.isEmpty)) return null;
+        if (androidUrl.isEmpty && iosUrl.isEmpty) return null;
+        final displayName = name.isEmpty ? '앱 설치' : name;
         if (androidUrl.isNotEmpty && iosUrl.isNotEmpty) {
           final uri = Uri.parse(BackendConfig.baseUrl).replace(
             path: BackendConfig.appLandingPath,
             queryParameters: {
-              'name': name,
+              'name': displayName,
               'androidUrl': androidUrl,
               'iosUrl': iosUrl,
               if ((data['description'] as String? ?? '').isNotEmpty) 'description': data['description'] as String,
@@ -92,13 +93,13 @@ class QrPayloadBuilder {
           );
           return PayloadBuildResult(
             payload: uri.toString(),
-            displayMeta: {'label': '앱 설치', 'name': name, 'url': uri.toString()},
+            displayMeta: {'label': '앱 설치', 'name': displayName, 'url': uri.toString()},
           );
         }
         final chosen = androidUrl.isNotEmpty ? androidUrl : iosUrl;
         return PayloadBuildResult(
           payload: chosen,
-          displayMeta: {'label': '앱 설치', 'name': name, 'url': chosen},
+          displayMeta: {'label': '앱 설치', 'name': displayName, 'url': chosen},
         );
       case QrType.wifi:
         final ssid = data['ssid'] as String? ?? '';

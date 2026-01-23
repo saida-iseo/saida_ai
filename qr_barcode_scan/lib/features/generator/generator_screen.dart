@@ -19,12 +19,14 @@ class GeneratorScreen extends StatelessWidget {
                 'QR 생성',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+              const SizedBox(height: 12),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     const crossAxisCount = 3;
-                    const childAspectRatio = 0.82; // 약간 더 여유 있는 높이
+                    const childAspectRatio = 0.9; // 카드 높이를 줄이면서 오버플로 방지
                     return GridView.count(
                       crossAxisCount: crossAxisCount,
                       physics: const BouncingScrollPhysics(),
@@ -72,7 +74,7 @@ class _InlineQrTypeCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: scheme.outlineVariant),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
@@ -85,34 +87,23 @@ class _InlineQrTypeCard extends StatelessWidget {
               ),
               child: Icon(meta.icon, color: scheme.primary, size: 24),
             ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 18,
-              child: Center(
-                child: Text(
-                  meta.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            const SizedBox(height: 5),
+            Text(
+              meta.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, height: 1.2),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 3),
-            SizedBox(
-              height: 22,
-              child: Center(
-                child: Text(
-                  meta.description,
-                  maxLines: 2,
-                  softWrap: true,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.clip,
-                  style: TextStyle(fontSize: 8, color: scheme.onSurface.withOpacity(0.65)),
-                ),
-              ),
+            const SizedBox(height: 2),
+            Text(
+              meta.description,
+              maxLines: 2,
+              softWrap: true,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 8, color: scheme.onSurface.withOpacity(0.65)),
             ),
-            const Spacer(),
           ],
         ),
       ),
