@@ -15,6 +15,7 @@ class SettingsScreen extends ConsumerWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final titleStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600);
     final subtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12);
+    final detailSubtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
     const tilePadding = EdgeInsets.symmetric(horizontal: 12, vertical: 6);
 
     return ListView(
@@ -23,54 +24,61 @@ class SettingsScreen extends ConsumerWidget {
         Text('설정', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
         _SectionTitle(title: '기본 설정'),
-        _SwitchTile(
-          title: '진동',
-          value: settings.vibrate,
-          onChanged: (_) => ref.read(settingsProvider.notifier).toggleVibrate(),
-          titleStyle: titleStyle,
-          subtitleStyle: subtitleStyle,
-        ),
-        _SwitchTile(
-          title: '소리',
-          value: settings.sound,
-          onChanged: (_) => ref.read(settingsProvider.notifier).toggleSound(),
-          titleStyle: titleStyle,
-          subtitleStyle: subtitleStyle,
-        ),
-        _SwitchTile(
-          title: '자동 초점',
-          value: settings.autoFocus,
-          onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoFocus(),
-          subtitle: settings.autoFocus ? '현재 상태: 사용 중' : '현재 상태: 사용 안 함',
-          titleStyle: titleStyle,
-          subtitleStyle: subtitleStyle,
-        ),
-        _SwitchTile(
-          title: 'URL 자동 열기',
-          value: settings.autoOpenUrl,
-          onChanged: (value) async {
-            if (!value) {
-              await ref.read(settingsProvider.notifier).toggleAutoOpenUrl();
-              return;
-            }
-            final approved = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('URL 자동 열기'),
-                content: const Text('링크를 자동으로 열면 피싱 위험이 있습니다. 항상 열기를 켤까요?'),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-                  TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('항상 열기')),
-                ],
-              ),
-            );
-            if (approved == true) {
-              await ref.read(settingsProvider.notifier).toggleAutoOpenUrl();
-            }
-          },
-          subtitle: '기본 OFF · 필요할 때만 직접 열기를 권장합니다.',
-          titleStyle: titleStyle,
-          subtitleStyle: subtitleStyle,
+        _SectionCard(
+          children: [
+            _SwitchTile(
+              title: '진동',
+              value: settings.vibrate,
+              onChanged: (_) => ref.read(settingsProvider.notifier).toggleVibrate(),
+              titleStyle: titleStyle,
+              subtitleStyle: subtitleStyle,
+            ),
+            const _CardDivider(),
+            _SwitchTile(
+              title: '소리',
+              value: settings.sound,
+              onChanged: (_) => ref.read(settingsProvider.notifier).toggleSound(),
+              titleStyle: titleStyle,
+              subtitleStyle: subtitleStyle,
+            ),
+            const _CardDivider(),
+            _SwitchTile(
+              title: '자동 초점',
+              value: settings.autoFocus,
+              onChanged: (_) => ref.read(settingsProvider.notifier).toggleAutoFocus(),
+              subtitle: settings.autoFocus ? '현재 상태: 사용 중' : '현재 상태: 사용 안 함',
+              titleStyle: titleStyle,
+              subtitleStyle: detailSubtitleStyle,
+            ),
+            const _CardDivider(),
+            _SwitchTile(
+              title: 'URL 자동 열기',
+              value: settings.autoOpenUrl,
+              onChanged: (value) async {
+                if (!value) {
+                  await ref.read(settingsProvider.notifier).toggleAutoOpenUrl();
+                  return;
+                }
+                final approved = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('URL 자동 열기'),
+                    content: const Text('링크를 자동으로 열면 피싱 위험이 있습니다. 항상 열기를 켤까요?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('항상 열기')),
+                    ],
+                  ),
+                );
+                if (approved == true) {
+                  await ref.read(settingsProvider.notifier).toggleAutoOpenUrl();
+                }
+              },
+              subtitle: '기본 OFF · 필요할 때만 직접 열기를 권장합니다.',
+              titleStyle: titleStyle,
+              subtitleStyle: detailSubtitleStyle,
+            ),
+          ],
         ),
         Padding(
           padding: tilePadding,
@@ -98,21 +106,25 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         _SectionTitle(title: '권한'),
-        ListTile(
-          contentPadding: tilePadding,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          minVerticalPadding: 0,
-          title: Text('알림 권한 요청', style: titleStyle),
-          subtitle: Text('탭하여 권한을 요청합니다.', style: subtitleStyle),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () async {
-            await Permission.notification.request();
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('알림 권한 요청을 완료했습니다.')),
-            );
-          },
+        _SectionCard(
+          children: [
+            ListTile(
+              contentPadding: tilePadding,
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              minVerticalPadding: 0,
+              title: Text('알림 권한 요청', style: titleStyle),
+              subtitle: Text('탭하여 권한을 요청합니다.', style: detailSubtitleStyle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                await Permission.notification.request();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('알림 권한 요청을 완료했습니다.')),
+                );
+              },
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         _SectionTitle(title: '정보'),
@@ -218,6 +230,42 @@ class _SectionTitle extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, fontSize: 12),
       ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: children,
+      ),
+    );
+  }
+}
+
+class _CardDivider extends StatelessWidget {
+  const _CardDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 12,
+      endIndent: 12,
+      color: Theme.of(context).colorScheme.outlineVariant,
     );
   }
 }
