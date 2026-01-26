@@ -478,6 +478,8 @@ class _HistoryTile extends StatelessWidget {
             data: {
               if (item.meta?['url'] != null)
                 'url': item.meta?['url'].toString() ?? '',
+              if (item.meta?['path'] != null)
+                'path': item.meta?['path'].toString() ?? '',
               if (item.meta?['label'] != null)
                 'label': item.meta?['label'].toString() ?? '',
               if (item.meta?['name'] != null)

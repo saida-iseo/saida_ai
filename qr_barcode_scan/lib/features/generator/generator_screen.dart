@@ -8,6 +8,12 @@ class GeneratorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const spacing = 12.0;
+    final visibleTypes = qrTypes
+        .where(
+          (meta) =>
+              meta.type != QrType.vcard && meta.type != QrType.appRedirect,
+        )
+        .toList();
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -36,7 +42,7 @@ class GeneratorScreen extends StatelessWidget {
                       mainAxisSpacing: spacing,
                       crossAxisSpacing: spacing,
                       childAspectRatio: childAspectRatio,
-                      children: qrTypes
+                      children: visibleTypes
                           .map(
                             (meta) => _InlineQrTypeCard(
                               meta: meta,

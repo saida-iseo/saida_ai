@@ -24,8 +24,21 @@ String? extractDomain(String url) {
 ParsedResult parsePayload(String value) {
   final trimmed = value.trim();
 
+  final localImage = _parseLocalImage(trimmed);
+  if (localImage != null) {
+    return ParsedResult(type: PayloadType.image, raw: trimmed, data: {'path': localImage});
+  }
+
+  final localPdf = _parseLocalPdf(trimmed);
+  if (localPdf != null) {
+    return ParsedResult(type: PayloadType.pdf, raw: trimmed, data: {'path': localPdf, 'label': 'PDF'});
+  }
+
   final url = _parseUrl(trimmed);
   if (url != null) {
+    if (_isImageUrl(url)) {
+      return ParsedResult(type: PayloadType.image, raw: trimmed, data: {'url': url, 'label': '이미지'});
+    }
     if (_isPdfUrl(url)) {
       return ParsedResult(type: PayloadType.pdf, raw: trimmed, data: {'url': url, 'label': 'PDF'});
     }
@@ -54,12 +67,39 @@ String? _parseUrl(String value) {
   return null;
 }
 
+String? _parseLocalImage(String value) {
+  if (!value.startsWith('saqr:image:')) return null;
+  final encoded = value.substring('saqr:image:'.length);
+  if (encoded.isEmpty) return null;
+  return Uri.decodeComponent(encoded);
+}
+
+String? _parseLocalPdf(String value) {
+  if (!value.startsWith('saqr:pdf:')) return null;
+  final encoded = value.substring('saqr:pdf:'.length);
+  if (encoded.isEmpty) return null;
+  return Uri.decodeComponent(encoded);
+}
+
 bool _isPdfUrl(String url) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   final path = uri.path.toLowerCase();
   if (path.endsWith('.pdf')) return true;
   return url.toLowerCase().contains('.pdf');
+}
+
+bool _isImageUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  final path = uri.path.toLowerCase();
+  return path.endsWith('.png') ||
+      path.endsWith('.jpg') ||
+      path.endsWith('.jpeg') ||
+      path.endsWith('.gif') ||
+      path.endsWith('.webp') ||
+      path.endsWith('.bmp') ||
+      path.endsWith('.svg');
 }
 
 Map<String, String> _parseWifi(String value) {

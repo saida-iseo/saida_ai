@@ -16,7 +16,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1200), () {
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (!mounted) return;
       setState(() => _visible = false);
     });
@@ -32,11 +32,11 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: AnimatedOpacity(
-        duration: const Duration(milliseconds: 600),
+        duration: const Duration(milliseconds: 400),
         opacity: _visible ? 1 : 0,
         onEnd: _handleEnd,
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 600),
+          duration: const Duration(milliseconds: 400),
           scale: _visible ? 1 : 0.98,
           child: Container(
             decoration: BoxDecoration(

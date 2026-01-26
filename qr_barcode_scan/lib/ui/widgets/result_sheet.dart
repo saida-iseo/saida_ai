@@ -123,18 +123,73 @@ class ResultSheet extends StatelessWidget {
         );
       case PayloadType.text:
         return Text(result.raw, style: textTheme.titleMedium);
-      case PayloadType.wifi:
+      case PayloadType.image:
+        final url = result.data['url'];
+        final path = result.data['path'];
+        final imageWidget = path != null && path.isNotEmpty
+            ? Image.file(File(path), fit: BoxFit.cover)
+            : (url != null && url.isNotEmpty
+                ? Image.network(url, fit: BoxFit.cover)
+                : null);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'SSID: ${result.data['ssid'] ?? '-'}',
-              style: textTheme.titleMedium,
+              result.data['label'] ?? '이미지',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 8),
-            Text('암호: ${result.data['password'] ?? '-'}'),
-            const SizedBox(height: 8),
-            Text('보안: ${result.data['type'] ?? 'WPA'}'),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                height: 220,
+                width: double.infinity,
+                child: imageWidget ??
+                    Center(
+                      child: Text(
+                        '이미지를 불러올 수 없습니다.',
+                        style: textTheme.bodySmall,
+                      ),
+                    ),
+              ),
+            ),
+          ],
+        );
+      case PayloadType.wifi:
+        final ssid = result.data['ssid'] ?? '-';
+        final rawType = result.data['type'] ?? 'WPA';
+        final password =
+            rawType == 'nopass' ? '없음' : (result.data['password'] ?? '-');
+        final securityLabel = _wifiSecurityLabel(rawType);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '와이파이',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _InfoRow(label: 'SSID', value: ssid),
+                  const SizedBox(height: 10),
+                  _InfoRow(label: '비밀번호', value: password),
+                  const SizedBox(height: 10),
+                  _InfoRow(label: '암호화', value: securityLabel),
+                ],
+              ),
+            ),
           ],
         );
       case PayloadType.email:
@@ -152,7 +207,44 @@ class ResultSheet extends StatelessWidget {
           ],
         );
       case PayloadType.pdf:
-      case PayloadType.image:
+        final path = result.data['path'];
+        final url = result.data['url'] ?? result.raw;
+        final fileName = path != null && path.isNotEmpty
+            ? path.split('/').last
+            : null;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              result.data['label'] ?? 'PDF',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.picture_as_pdf),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      fileName ?? url,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
       case PayloadType.video:
       case PayloadType.social:
       case PayloadType.playlist:
@@ -262,6 +354,28 @@ class ResultSheet extends StatelessWidget {
 
   List<Widget> _buildActions(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    if (result.type == PayloadType.wifi) {
+      final password = result.data['password'] ?? '';
+      return [
+        _ActionButton(
+          label: '비밀번호 복사',
+          icon: Icons.lock_outline,
+          color: colorScheme.primary,
+          onTap: () async {
+            if (password.toString().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('비밀번호가 없습니다.')),
+              );
+              return;
+            }
+            await Clipboard.setData(ClipboardData(text: password.toString()));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('비밀번호를 복사했습니다.')));
+          },
+        ),
+      ];
+    }
     final actions = <Widget>[
       _ActionButton(
         label: '복사',
@@ -287,35 +401,6 @@ class ResultSheet extends StatelessWidget {
           icon: Icons.open_in_browser,
           color: colorScheme.primary,
           onTap: onOpenUrl,
-        ),
-      );
-    }
-
-    if (result.type == PayloadType.wifi && Platform.isAndroid) {
-      actions.insert(
-        1,
-        _ActionButton(
-          label: '와이파이 연결',
-          icon: Icons.wifi,
-          color: colorScheme.primary,
-          onTap: () async {
-            final password = result.data['password'] ?? '';
-            if (password.isNotEmpty) {
-              await Clipboard.setData(ClipboardData(text: password));
-            }
-            const intent = AndroidIntent(action: 'android.settings.WIFI_SETTINGS');
-            await intent.launch();
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  password.isNotEmpty
-                      ? '와이파이 설정을 열었어요. 비밀번호를 복사했습니다.'
-                      : '와이파이 설정을 열었어요.',
-                ),
-              ),
-            );
-          },
         ),
       );
     }
@@ -460,6 +545,56 @@ class _SafetyBadge extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+}
+
+String _wifiSecurityLabel(String raw) {
+  switch (raw) {
+    case 'WEP':
+      return 'WEP';
+    case 'WPA2-EAP':
+    case 'WPA-EAP':
+      return 'WPA-EAP';
+    case 'nopass':
+      return '없음';
+    case 'WPA':
+    default:
+      return 'WPA/WPA2';
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 64,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface.withOpacity(0.75),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -43,14 +43,8 @@ class ScanOverlay extends StatelessWidget {
           rect: scanWindow,
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: cornerColor.withOpacity(0.6), width: 2),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: cornerColor.withOpacity(0.25),
-                  blurRadius: 24,
-                ),
-              ],
+              border: Border.all(color: cornerColor.withOpacity(0.7), width: 2),
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
@@ -66,22 +60,6 @@ class ScanOverlay extends StatelessWidget {
                     child: topRight,
                   ),
                 ),
-              _CornerAccent(
-                color: cornerColor,
-                alignment: Alignment.topLeft,
-              ),
-              _CornerAccent(
-                color: cornerColor,
-                alignment: Alignment.topRight,
-              ),
-              _CornerAccent(
-                color: cornerColor,
-                alignment: Alignment.bottomLeft,
-              ),
-              _CornerAccent(
-                color: cornerColor,
-                alignment: Alignment.bottomRight,
-              ),
               Align(
                 alignment: Alignment.center,
                 child: Opacity(
@@ -116,53 +94,6 @@ class ScanOverlay extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CornerAccent extends StatelessWidget {
-  const _CornerAccent({
-    required this.color,
-    required this.alignment,
-  });
-
-  final Color color;
-  final Alignment alignment;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 26.0;
-    const thickness = 3.0;
-    Border border;
-    if (alignment == Alignment.topLeft) {
-      border = Border(
-        top: BorderSide(color: color, width: thickness),
-        left: BorderSide(color: color, width: thickness),
-      );
-    } else if (alignment == Alignment.topRight) {
-      border = Border(
-        top: BorderSide(color: color, width: thickness),
-        right: BorderSide(color: color, width: thickness),
-      );
-    } else if (alignment == Alignment.bottomLeft) {
-      border = Border(
-        bottom: BorderSide(color: color, width: thickness),
-        left: BorderSide(color: color, width: thickness),
-      );
-    } else {
-      border = Border(
-        bottom: BorderSide(color: color, width: thickness),
-        right: BorderSide(color: color, width: thickness),
-      );
-    }
-
-    return Align(
-      alignment: alignment,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(border: border),
-      ),
     );
   }
 }

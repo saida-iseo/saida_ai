@@ -1,12 +1,19 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_barcode_scan/features/generator/generator_screen.dart';
+import 'package:qr_barcode_scan/features/generator/models/qr_type.dart';
+import 'package:qr_barcode_scan/features/generator/qr_form_screen.dart';
 import 'package:qr_barcode_scan/features/history/history_screen.dart';
 import 'package:qr_barcode_scan/features/scanner/scanner_screen.dart';
 import 'package:qr_barcode_scan/features/settings/settings_screen.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
 import 'package:qr_barcode_scan/ui/widgets/ad_banner.dart';
+import 'package:qr_barcode_scan/utils/process_text_service.dart';
 
 final navIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -18,13 +25,26 @@ class BottomNavScaffold extends ConsumerStatefulWidget {
 }
 
 class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
+  StreamSubscription<String>? _processTextSub;
+
   @override
   void initState() {
     super.initState();
-    _requestNotificationOnce();
+    _initAds();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestInitialPermissions();
+      _requestNotificationOnce();
       _showSafetyNoticeIfNeeded();
+      _listenProcessText();
     });
+  }
+
+  Future<void> _initAds() async {
+    try {
+      await MobileAds.instance.initialize();
+    } catch (_) {
+      // 광고 초기화 실패는 UX에 치명적이지 않으므로 무시합니다.
+    }
   }
 
   Future<void> _requestNotificationOnce() async {
@@ -34,7 +54,6 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
   }
 
   Future<void> _showSafetyNoticeIfNeeded() async {
-    if (LocalStorage.safetyNoticeDone) return;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -63,6 +82,71 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
       ),
     );
     await LocalStorage.setSafetyNoticeDone();
+  }
+
+  void _listenProcessText() {
+    ProcessTextService.getInitialText().then(_handleProcessText);
+    _processTextSub?.cancel();
+    _processTextSub = ProcessTextService.stream.listen(_handleProcessText);
+  }
+
+  void _handleProcessText(String? text) {
+    if (text == null || text.trim().isEmpty) return;
+    final url = _normalizeUrl(text);
+    if (url == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('지원하지 않는 텍스트입니다.')));
+      return;
+    }
+    ref.read(navIndexProvider.notifier).state = 1;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => QrFormScreen(
+          type: QrType.website,
+          initialText: url,
+          autoApply: true,
+        ),
+      ),
+    );
+  }
+
+  String? _normalizeUrl(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.contains(' ') || !trimmed.contains('.')) return null;
+    return 'https://$trimmed';
+  }
+
+  Future<void> _requestInitialPermissions() async {
+    final cameraStatus = await Permission.camera.status;
+    if (!cameraStatus.isGranted) {
+      await Permission.camera.request();
+    }
+    if (Platform.isIOS) {
+      final photoStatus = await Permission.photos.status;
+      if (!photoStatus.isGranted) {
+        await Permission.photos.request();
+      }
+      return;
+    }
+    var mediaStatus = await Permission.photos.status;
+    if (!mediaStatus.isGranted) {
+      mediaStatus = await Permission.photos.request();
+    }
+    if (!mediaStatus.isGranted) {
+      await Permission.storage.request();
+    }
+  }
+
+  @override
+  void dispose() {
+    _processTextSub?.cancel();
+    super.dispose();
   }
 
   @override

@@ -13,6 +13,7 @@ class UploadService {
   final http.Client _client;
 
   Future<String> uploadFile(File file) async {
+    _ensureConfigured();
     final uri = Uri.parse('${BackendConfig.baseUrl}${BackendConfig.uploadEndpoint}');
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
     final mediaType = MediaType.parse(mimeType);
@@ -22,12 +23,19 @@ class UploadService {
   }
 
   Future<String> uploadBytes(Uint8List bytes, String filename) async {
+    _ensureConfigured();
     final uri = Uri.parse('${BackendConfig.baseUrl}${BackendConfig.uploadEndpoint}');
     final mimeType = lookupMimeType(filename) ?? 'application/octet-stream';
     final mediaType = MediaType.parse(mimeType);
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename, contentType: mediaType));
     return _sendRequest(request);
+  }
+
+  void _ensureConfigured() {
+    if (BackendConfig.baseUrl.contains('your-backend')) {
+      throw Exception('업로드 서버 주소를 설정해 주세요.');
+    }
   }
 
   Future<String> _sendRequest(http.MultipartRequest request) async {

@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -21,28 +24,92 @@ class ScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen>
+    with WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(
+    autoStart: false,
+    facing: CameraFacing.back,
     torchEnabled: false,
   );
   String? _lastValue;
   DateTime? _lastScanTime;
   bool _isSheetOpen = false;
   bool _permissionGranted = false;
+  bool _galleryPermissionGranted = false;
+  bool _startRequested = false;
   final bool _isBarcodeMode = false;
 
   @override
   void initState() {
     super.initState();
-    _requestCameraPermission();
+    WidgetsBinding.instance.addObserver(this);
+    _checkPermissions();
   }
 
-  Future<void> _requestCameraPermission() async {
-    final status = await Permission.camera.request();
+  Future<void> _checkPermissions() async {
+    final cameraStatus = await Permission.camera.status;
+    final galleryStatus = await _getGalleryPermissionStatus();
     if (!mounted) return;
+    setState(() {
+      _permissionGranted = cameraStatus.isGranted;
+      _galleryPermissionGranted = galleryStatus.isGranted;
+    });
+    await _startCameraIfPossible();
+  }
+
+  Future<PermissionStatus> _requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    if (!mounted) return status;
     setState(() {
       _permissionGranted = status.isGranted;
     });
+    await _startCameraIfPossible();
+    return status;
+  }
+
+  Future<void> _startCameraIfPossible() async {
+    if (!_permissionGranted) return;
+    if (_controller.value.isRunning || _startRequested) return;
+    _startRequested = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      try {
+        try {
+          await _controller.stop();
+        } catch (_) {
+          // 이미 중지된 경우 무시합니다.
+        }
+        await _controller.start();
+      } finally {
+        if (mounted) {
+          _startRequested = false;
+        }
+      }
+    });
+  }
+
+  Future<PermissionStatus> _getGalleryPermissionStatus() async {
+    if (Platform.isIOS) return Permission.photos.status;
+    final photos = await Permission.photos.status;
+    if (photos.isGranted) return photos;
+    return Permission.storage.status;
+  }
+
+  Future<PermissionStatus> _requestGalleryPermission() async {
+    PermissionStatus status;
+    if (Platform.isIOS) {
+      status = await Permission.photos.request();
+    } else {
+      status = await Permission.photos.request();
+      if (!status.isGranted) {
+        status = await Permission.storage.request();
+      }
+    }
+    if (!mounted) return status;
+    setState(() {
+      _galleryPermissionGranted = status.isGranted;
+    });
+    return status;
   }
 
   Future<void> _handleBarcode(
@@ -122,7 +189,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       builder: (context) => ResultSheet(
         result: parsed,
         onOpenUrl: () async {
-          await _openUrlWithSafety(context, parsed.data['url'] ?? parsed.raw);
+          await _openResult(context, parsed);
           if (mounted) Navigator.pop(context);
         },
       ),
@@ -180,6 +247,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   Future<void> _pickFromGallery() async {
     if (_isSheetOpen) return;
+    if (!_galleryPermissionGranted) {
+      final status = await _requestGalleryPermission();
+      if (!status.isGranted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('앨범 접근 권한이 필요합니다.')));
+        return;
+      }
+    }
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
@@ -239,6 +316,47 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       if (proceed != true) return;
     }
     await launchUrlPreferApp(url);
+  }
+
+  Future<void> _openResult(BuildContext context, ParsedResult result) async {
+    final path = result.data['path'];
+    if (path != null && path.isNotEmpty) {
+      final opened = await _openLocalFile(context, path);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('파일을 열 수 없습니다.')));
+      }
+      return;
+    }
+    await _openUrlWithSafety(context, result.data['url'] ?? result.raw);
+  }
+
+  Future<bool> _openLocalFile(BuildContext context, String path) async {
+    if (!Platform.isAndroid) return false;
+    final mime = _mimeFromPath(path);
+    final intent = AndroidIntent(
+      action: 'android.intent.action.VIEW',
+      data: Uri.file(path).toString(),
+      type: mime,
+      flags: <int>[Flag.FLAG_GRANT_READ_URI_PERMISSION],
+    );
+    try {
+      await intent.launch();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _mimeFromPath(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return '*/*';
   }
 
   Future<bool?> _showFirstScanNotice(
@@ -340,13 +458,33 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_permissionGranted) return;
+    if (state == AppLifecycleState.resumed) {
+      _startCameraIfPossible();
+    } else if (state == AppLifecycleState.paused) {
+      _controller.stop();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    if (_permissionGranted &&
+        !_controller.value.isRunning &&
+        !_startRequested) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _startCameraIfPossible();
+        }
+      });
+    }
     // TODO: mobile_scanner의 자동 초점 직접 제어는 제한적이라 UI 상태만 반영합니다.
 
     return Stack(
@@ -407,13 +545,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           scanWindow: scanWindow,
                           onDetect: _handleBarcode,
                           errorBuilder: (context, error, child) {
-                            return Center(
-                              child: Text(
-                                '카메라 오류가 발생했습니다.',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                ),
-                              ),
+                            return _CameraErrorCard(
+                              message: _cameraErrorMessage(error),
+                              onRetry: () async {
+                                await _controller.stop();
+                                await _controller.start();
+                              },
                             );
                           },
                         ),
@@ -506,7 +643,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     );
                   },
                 )
-              : _PermissionPrompt(onRetry: _requestCameraPermission),
+              : _PermissionPrompt(
+                  cameraGranted: _permissionGranted,
+                  galleryGranted: _galleryPermissionGranted,
+                  onRequestCamera: () async {
+                    await _requestCameraPermission();
+                  },
+                  onRequestGallery: () async {
+                    await _requestGalleryPermission();
+                  },
+                ),
         ),
       ],
     );
@@ -671,9 +817,17 @@ class _SettingToggleRow extends StatelessWidget {
 }
 
 class _PermissionPrompt extends StatelessWidget {
-  const _PermissionPrompt({required this.onRetry});
+  const _PermissionPrompt({
+    required this.cameraGranted,
+    required this.galleryGranted,
+    required this.onRequestCamera,
+    required this.onRequestGallery,
+  });
 
-  final VoidCallback onRetry;
+  final bool cameraGranted;
+  final bool galleryGranted;
+  final Future<void> Function() onRequestCamera;
+  final Future<void> Function() onRequestGallery;
 
   @override
   Widget build(BuildContext context) {
@@ -687,29 +841,118 @@ class _PermissionPrompt extends StatelessWidget {
             Icon(Icons.lock, size: 48, color: colorScheme.primary),
             const SizedBox(height: 12),
             Text(
-              '카메라 권한이 필요합니다.',
+              '권한을 허용해 주세요.',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              '설정에서 권한을 허용하거나 다시 시도하세요.',
+              '카메라와 앨범 권한을 허용하면 바로 스캔이 시작됩니다.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: onRetry,
-                  child: const Text('권한 다시 요청'),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton(
-                  onPressed: () => openAppSettings(),
-                  child: const Text('설정 열기'),
-                ),
-              ],
+            _PermissionRow(
+              label: '카메라 권한',
+              granted: cameraGranted,
+              onRequest: onRequestCamera,
+            ),
+            const SizedBox(height: 10),
+            _PermissionRow(
+              label: '앨범 접근',
+              granted: galleryGranted,
+              onRequest: onRequestGallery,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => openAppSettings(),
+              child: const Text('설정 열기'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PermissionRow extends StatelessWidget {
+  const _PermissionRow({
+    required this.label,
+    required this.granted,
+    required this.onRequest,
+  });
+
+  final String label;
+  final bool granted;
+  final Future<void> Function() onRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(
+          granted ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: granted ? colorScheme.primary : colorScheme.outline,
+          size: 20,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: granted ? null : () => onRequest(),
+          child: Text(granted ? '완료' : '허용'),
+        ),
+      ],
+    );
+  }
+}
+
+String _cameraErrorMessage(MobileScannerException error) {
+  switch (error.errorCode) {
+    case MobileScannerErrorCode.permissionDenied:
+      return '카메라 권한이 거부되었습니다. 설정에서 권한을 허용해 주세요.';
+    case MobileScannerErrorCode.unsupported:
+      return '이 기기에서 카메라를 지원하지 않습니다.';
+    default:
+      return '카메라를 시작할 수 없습니다. 다시 시도해 주세요.';
+  }
+}
+
+class _CameraErrorCard extends StatelessWidget {
+  const _CameraErrorCard({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.55),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(color: Colors.white),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () => onRetry(),
+              child: const Text('카메라 다시 시작'),
             ),
           ],
         ),

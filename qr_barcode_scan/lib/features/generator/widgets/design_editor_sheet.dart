@@ -5,6 +5,7 @@ import 'package:qr_barcode_scan/features/generator/models/qr_design.dart';
 Future<QrDesign?> showDesignEditor({
   required BuildContext context,
   required QrDesign initial,
+  ValueChanged<QrDesign>? onChanged,
 }) {
   return showModalBottomSheet<QrDesign>(
     context: context,
@@ -50,43 +51,53 @@ Future<QrDesign?> showDesignEditor({
                     _ColorPalette(
                       title: 'QR 색상',
                       selected: draft.foreground,
-                      onPreset: (c) =>
-                          setState(() => draft = draft.copyWith(foreground: c)),
+                      onPreset: (c) {
+                        setState(() => draft = draft.copyWith(foreground: c));
+                        onChanged?.call(draft);
+                      },
                       onCustom: () async {
                         final picked = await _pickColor(
                           context,
                           draft.foreground,
                           'QR 색상 선택',
                         );
-                        if (picked != null)
+                        if (picked != null) {
                           setState(
                             () => draft = draft.copyWith(foreground: picked),
                           );
+                          onChanged?.call(draft);
+                        }
                       },
                     ),
                     const SizedBox(height: 12),
                     _ColorPalette(
                       title: '배경색',
                       selected: draft.background,
-                      onPreset: (c) =>
-                          setState(() => draft = draft.copyWith(background: c)),
+                      onPreset: (c) {
+                        setState(() => draft = draft.copyWith(background: c));
+                        onChanged?.call(draft);
+                      },
                       onCustom: () async {
                         final picked = await _pickColor(
                           context,
                           draft.background,
                           '배경색 선택',
                         );
-                        if (picked != null)
+                        if (picked != null) {
                           setState(
                             () => draft = draft.copyWith(background: picked),
                           );
+                          onChanged?.call(draft);
+                        }
                       },
                     ),
                     const SizedBox(height: 12),
                     _PatternRow(
                       selected: draft.pattern,
-                      onSelected: (p) =>
-                          setState(() => draft = draft.copyWith(pattern: p)),
+                      onSelected: (p) {
+                        setState(() => draft = draft.copyWith(pattern: p));
+                        onChanged?.call(draft);
+                      },
                     ),
                     const SizedBox(height: 16),
                     Padding(
@@ -162,18 +173,18 @@ class _ColorPalette extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 46,
+            height: 34,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: kPresetColors.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return InkWell(
                     onTap: onCustom,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      width: 46,
+                      width: 34,
                       decoration: BoxDecoration(
                         color: Theme.of(
                           context,
@@ -183,7 +194,7 @@ class _ColorPalette extends StatelessWidget {
                           color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
-                      child: const Icon(Icons.add, size: 22),
+                      child: const Icon(Icons.add, size: 18),
                     ),
                   );
                 }
@@ -192,10 +203,10 @@ class _ColorPalette extends StatelessWidget {
                 return GestureDetector(
                   onTap: () => onPreset(color),
                   child: Container(
-                    width: 42,
+                    width: 30,
                     decoration: BoxDecoration(
                       color: color,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: selectedNow
                             ? Theme.of(context).colorScheme.primary
@@ -235,14 +246,20 @@ class _PatternRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('패턴', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: options
                 .map(
                   (opt) => ChoiceChip(
-                    label: Text(opt.$2),
+                    label: Text(
+                      opt.$2,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
                     selected: opt.$1 == selected,
                     onSelected: (_) => onSelected(opt.$1),
                   ),

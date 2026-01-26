@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_design.dart';
@@ -43,37 +45,42 @@ class QrPreviewCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('미리보기', style: TextStyle(fontWeight: FontWeight.w700)),
-              const Spacer(),
-              Text(
-                payload.isEmpty ? '입력 필요' : '입력 완료됨',
-                style: TextStyle(fontSize: 11, color: scheme.primary),
-              ),
+              const Text('SAIDA QR', style: TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
           const SizedBox(height: 10),
-          AspectRatio(
-            aspectRatio: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                color: design.background,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: scheme.outlineVariant),
-              ),
-              child: payload.isEmpty
-                  ? Center(
-                      child: Text(
-                        '입력 완료 후 생성',
-                        style: TextStyle(color: scheme.onSurface.withOpacity(0.55)),
-                      ),
-                    )
-                  : QrImageView(
-                      data: payload,
-                      backgroundColor: design.background,
-                      dataModuleStyle: dataStyle,
-                      eyeStyle: eyeStyle,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final size = math.min(constraints.maxWidth, 220.0);
+              return Center(
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: design.background,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: scheme.outlineVariant),
                     ),
-            ),
+                    child: payload.isEmpty
+                        ? Center(
+                            child: Text(
+                              '입력 완료 후 생성',
+                              style: TextStyle(
+                                color: scheme.onSurface.withOpacity(0.55),
+                              ),
+                            ),
+                          )
+                        : QrImageView(
+                            data: payload,
+                            backgroundColor: design.background,
+                            dataModuleStyle: dataStyle,
+                            eyeStyle: eyeStyle,
+                          ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
