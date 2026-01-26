@@ -18,13 +18,14 @@ class QrPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dataStyle = QrDataModuleStyle(
-      dataModuleShape: _shape(design.pattern),
+      dataModuleShape: _dataShape(design.pattern),
       color: design.foreground,
     );
     final eyeStyle = QrEyeStyle(
-      eyeShape: _eye(design.pattern),
+      eyeShape: _eyeShape(design.pattern),
       color: design.foreground,
     );
+    final gapless = _gapless(design.pattern);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -76,6 +77,7 @@ class QrPreviewCard extends StatelessWidget {
                             backgroundColor: design.background,
                             dataModuleStyle: dataStyle,
                             eyeStyle: eyeStyle,
+                            gapless: gapless,
                           ),
                   ),
                 ),
@@ -87,27 +89,36 @@ class QrPreviewCard extends StatelessWidget {
     );
   }
 
-  QrDataModuleShape _shape(QrPattern pattern) {
+  QrDataModuleShape _dataShape(QrPattern pattern) {
     switch (pattern) {
       case QrPattern.classic:
       case QrPattern.pixel:
+      case QrPattern.roundedCorners:
         return QrDataModuleShape.square;
       case QrPattern.round:
       case QrPattern.dots:
-      case QrPattern.roundedCorners:
         return QrDataModuleShape.circle;
     }
   }
 
-  QrEyeShape _eye(QrPattern pattern) {
+  QrEyeShape _eyeShape(QrPattern pattern) {
     switch (pattern) {
       case QrPattern.classic:
       case QrPattern.pixel:
+      case QrPattern.dots:
         return QrEyeShape.square;
       case QrPattern.round:
-      case QrPattern.dots:
       case QrPattern.roundedCorners:
         return QrEyeShape.circle;
+    }
+  }
+
+  bool _gapless(QrPattern pattern) {
+    switch (pattern) {
+      case QrPattern.pixel:
+        return false;
+      default:
+        return true;
     }
   }
 }
