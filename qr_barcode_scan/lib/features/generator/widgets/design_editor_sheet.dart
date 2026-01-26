@@ -240,6 +240,7 @@ class _PatternRow extends StatelessWidget {
       (QrPattern.roundedCorners, 'Rounded'),
       (QrPattern.pixel, 'Pixel'),
     ];
+    final selectedColor = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -247,24 +248,31 @@ class _PatternRow extends StatelessWidget {
         children: [
           const Text('패턴', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: options
-                .map(
-                  (opt) => ChoiceChip(
-                    label: Text(
-                      opt.$2,
-                      style: const TextStyle(fontSize: 11),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: options.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, index) {
+                final opt = options[index];
+                final isSelected = opt.$1 == selected;
+                return ChoiceChip(
+                  label: Text(
+                    opt.$2,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isSelected ? selectedColor : null,
                     ),
-                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-                    selected: opt.$1 == selected,
-                    onSelected: (_) => onSelected(opt.$1),
                   ),
-                )
-                .toList(),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+                  selected: isSelected,
+                  onSelected: (_) => onSelected(opt.$1),
+                );
+              },
+            ),
           ),
         ],
       ),

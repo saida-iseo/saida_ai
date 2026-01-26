@@ -58,6 +58,7 @@ class _QrFormScreenState extends State<QrFormScreen> {
   final _fbUrlCtrl = TextEditingController();
   final _igUserCtrl = TextEditingController();
   final _waPhoneCtrl = TextEditingController();
+  String _waCountryCode = '+82';
   final _appAndroidCtrl = TextEditingController();
   final _appIosCtrl = TextEditingController();
   final _wifiSsidCtrl = TextEditingController();
@@ -297,6 +298,11 @@ class _QrFormScreenState extends State<QrFormScreen> {
           'PDF 파일을 선택하세요.',
           style: TextStyle(fontSize: 11, color: Colors.grey),
         ),
+        const SizedBox(height: 6),
+        const Text(
+          '민감정보(주민번호, 계약서 등)는 업로드하지 마세요.',
+          style: TextStyle(fontSize: 10, color: Colors.grey),
+        ),
       ],
     );
   }
@@ -328,6 +334,11 @@ class _QrFormScreenState extends State<QrFormScreen> {
         const Text(
           '갤러리에서 이미지를 선택하세요.',
           style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '민감정보(주민번호, 계약서 등)는 업로드하지 마세요.',
+          style: TextStyle(fontSize: 10, color: Colors.grey),
         ),
       ],
     );
@@ -441,16 +452,39 @@ class _QrFormScreenState extends State<QrFormScreen> {
   Widget _buildWhatsappForm() {
     return _FieldCard(
       children: [
-        _Label('전화번호* (국가코드 포함 권장)'),
+        _Label('국가코드'),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: _waCountryCode,
+          decoration: _inputDecoration(null),
+          items: const [
+            DropdownMenuItem(value: '+82', child: Text('🇰🇷 +82')),
+            DropdownMenuItem(value: '+81', child: Text('🇯🇵 +81')),
+            DropdownMenuItem(value: '+1', child: Text('🇺🇸 +1')),
+            DropdownMenuItem(value: '+44', child: Text('🇬🇧 +44')),
+            DropdownMenuItem(value: '+49', child: Text('🇩🇪 +49')),
+            DropdownMenuItem(value: '+33', child: Text('🇫🇷 +33')),
+            DropdownMenuItem(value: '+86', child: Text('🇨🇳 +86')),
+            DropdownMenuItem(value: '+91', child: Text('🇮🇳 +91')),
+            DropdownMenuItem(value: '+84', child: Text('🇻🇳 +84')),
+            DropdownMenuItem(value: '+61', child: Text('🇦🇺 +61')),
+          ],
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() => _waCountryCode = value);
+          },
+        ),
+        const SizedBox(height: 10),
+        _Label('전화번호*'),
         const SizedBox(height: 6),
         TextField(
           controller: _waPhoneCtrl,
-          decoration: _inputDecoration('+821012345678'),
+          decoration: _inputDecoration('01012345678'),
           keyboardType: TextInputType.phone,
         ),
         const SizedBox(height: 6),
         const Text(
-          '숫자/+, 공백 제거 후 wa.me 링크로 변환됩니다.',
+          '숫자만 입력하면 자동으로 wa.me 링크로 변환됩니다.',
           style: TextStyle(fontSize: 11, color: Colors.grey),
         ),
       ],
@@ -813,7 +847,9 @@ class _QrFormScreenState extends State<QrFormScreen> {
         data = {'username': _igUserCtrl.text.trim()};
         break;
       case QrType.whatsapp:
-        data = {'phone': _waPhoneCtrl.text.trim()};
+        data = {
+          'phone': _buildWhatsAppPhone(),
+        };
         break;
       case QrType.appRedirect:
         data = {
@@ -899,6 +935,12 @@ class _QrFormScreenState extends State<QrFormScreen> {
     if (text.isEmpty) return '';
     if (text.startsWith('http://') || text.startsWith('https://')) return text;
     return 'https://$text';
+  }
+
+  String _buildWhatsAppPhone() {
+    final rawNumber = _waPhoneCtrl.text.trim();
+    final combined = '$_waCountryCode$rawNumber';
+    return combined.replaceAll(RegExp(r'[^0-9]'), '');
   }
 
   Future<void> _openDesignEditor() async {
