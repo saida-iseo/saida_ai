@@ -9,10 +9,12 @@ class QrPreviewCard extends StatelessWidget {
     super.key,
     required this.payload,
     required this.design,
+    this.emptyMessage = '입력 완료 후 생성',
   });
 
   final String payload;
   final QrDesign design;
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -66,9 +68,10 @@ class QrPreviewCard extends StatelessWidget {
                     child: payload.isEmpty
                         ? Center(
                             child: Text(
-                              '입력 완료 후 생성',
-                              style: TextStyle(
-                                color: scheme.onSurface.withOpacity(0.55),
+                              emptyMessage,
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           )

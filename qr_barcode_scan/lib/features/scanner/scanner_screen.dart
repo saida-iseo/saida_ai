@@ -90,9 +90,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
   Future<PermissionStatus> _getGalleryPermissionStatus() async {
     if (Platform.isIOS) return Permission.photos.status;
-    final photos = await Permission.photos.status;
-    if (photos.isGranted) return photos;
-    return Permission.storage.status;
+    final storage = await Permission.storage.status;
+    if (storage.isGranted) return storage;
+    return Permission.photos.status;
   }
 
   Future<PermissionStatus> _requestGalleryPermission() async {
@@ -100,9 +100,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     if (Platform.isIOS) {
       status = await Permission.photos.request();
     } else {
-      status = await Permission.photos.request();
+      status = await Permission.storage.request();
       if (!status.isGranted) {
-        status = await Permission.storage.request();
+        status = await Permission.photos.request();
       }
     }
     if (!mounted) return status;
@@ -249,6 +249,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     if (_isSheetOpen) return;
     if (!_galleryPermissionGranted) {
       final status = await _requestGalleryPermission();
+      final storageStatus = await Permission.storage.status;
+      final photosStatus = await Permission.photos.status;
+      final permanentlyDenied =
+          storageStatus.isPermanentlyDenied ||
+          photosStatus.isPermanentlyDenied ||
+          status.isPermanentlyDenied;
+      if (permanentlyDenied || status.isRestricted) {
+        if (!mounted) return;
+        _showGalleryPermissionSheet();
+        return;
+      }
       if (!status.isGranted) {
         if (!mounted) return;
         ScaffoldMessenger.of(
@@ -258,7 +269,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       }
     }
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1440,
+    );
     if (image == null) return;
 
     final capture = await _controller.analyzeImage(image.path);
@@ -270,6 +285,39 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       return;
     }
     await _handleBarcode(capture, imagePath: image.path);
+  }
+
+  void _showGalleryPermissionSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '앨범 접근 권한 필요',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '설정에서 앨범 권한을 허용해 주세요.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () {
+                  openAppSettings();
+                  Navigator.pop(context);
+                },
+                child: const Text('설정 열기'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _openUrlWithSafety(BuildContext context, String url) async {
@@ -465,9 +513,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_permissionGranted) return;
     if (state == AppLifecycleState.resumed) {
-      _startCameraIfPossible();
+      _checkPermissions();
     } else if (state == AppLifecycleState.paused) {
       _controller.stop();
     }
@@ -644,13 +691,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                   },
                 )
               : _PermissionPrompt(
-                  cameraGranted: _permissionGranted,
-                  galleryGranted: _galleryPermissionGranted,
                   onRequestCamera: () async {
                     await _requestCameraPermission();
-                  },
-                  onRequestGallery: () async {
-                    await _requestGalleryPermission();
                   },
                 ),
         ),
@@ -818,16 +860,10 @@ class _SettingToggleRow extends StatelessWidget {
 
 class _PermissionPrompt extends StatelessWidget {
   const _PermissionPrompt({
-    required this.cameraGranted,
-    required this.galleryGranted,
     required this.onRequestCamera,
-    required this.onRequestGallery,
   });
 
-  final bool cameraGranted;
-  final bool galleryGranted;
   final Future<void> Function() onRequestCamera;
-  final Future<void> Function() onRequestGallery;
 
   @override
   Widget build(BuildContext context) {
@@ -846,21 +882,15 @@ class _PermissionPrompt extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '카메라와 앨범 권한을 허용하면 바로 스캔이 시작됩니다.',
+              '카메라 권한을 허용하면 바로 스캔이 시작됩니다.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             _PermissionRow(
               label: '카메라 권한',
-              granted: cameraGranted,
+              granted: false,
               onRequest: onRequestCamera,
-            ),
-            const SizedBox(height: 10),
-            _PermissionRow(
-              label: '앨범 접근',
-              granted: galleryGranted,
-              onRequest: onRequestGallery,
             ),
             const SizedBox(height: 12),
             OutlinedButton(

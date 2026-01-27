@@ -41,6 +41,8 @@ class _QrFormScreenState extends State<QrFormScreen> {
   final _uploadService = UploadService();
   String _payload = '';
   bool _uploading = false;
+  bool _isGenerating = false;
+  bool _generatingDialogVisible = false;
   final GlobalKey _qrKey = GlobalKey();
 
   // Common controllers
@@ -157,7 +159,14 @@ class _QrFormScreenState extends State<QrFormScreen> {
                   children: [
                     RepaintBoundary(
                       key: _qrKey,
-                      child: QrPreviewCard(payload: _payload, design: _design),
+                      child: QrPreviewCard(
+                        payload: _payload,
+                        design: _design,
+                        emptyMessage: widget.type == QrType.image ||
+                                widget.type == QrType.pdf
+                            ? '첨부 완료 후 생성'
+                            : '입력 완료 후 생성',
+                      ),
                     ),
                     const SizedBox(height: 14),
                     _buildForm(context),
@@ -316,10 +325,20 @@ class _QrFormScreenState extends State<QrFormScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            ElevatedButton.icon(
-              onPressed: _uploading ? null : _pickLocalImage,
-              icon: const Icon(Icons.photo),
-              label: const Text('이미지 선택'),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _uploading ? null : () => _pickLocalImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo),
+                label: const Text('이미지 선택'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _uploading ? null : () => _pickLocalImage(ImageSource.camera),
+                icon: const Icon(Icons.photo_camera),
+                label: const Text('카메라 촬영'),
+              ),
             ),
           ],
         ),
@@ -618,9 +637,13 @@ class _QrFormScreenState extends State<QrFormScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _pickLocalImage() async {
+  Future<void> _pickLocalImage(ImageSource source) async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
+    final image = await picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1440,
+    );
     if (image == null) return;
     final dir = await getApplicationDocumentsDirectory();
     final ext = image.path.split('.').last;
@@ -909,12 +932,20 @@ class _QrFormScreenState extends State<QrFormScreen> {
 
   Future<void> _applyPayload() async {
     if (_uploading) return;
+    if (_isGenerating) return;
+    _setGenerating(true);
     if (widget.type == QrType.image) {
       final ok = await _ensureImageUpload();
-      if (!ok) return;
+      if (!ok) {
+        _setGenerating(false);
+        return;
+      }
     } else if (widget.type == QrType.pdf) {
       final ok = await _ensurePdfUpload();
-      if (!ok) return;
+      if (!ok) {
+        _setGenerating(false);
+        return;
+      }
     }
     final result = _buildPayload();
     if (result == null) {
@@ -922,12 +953,15 @@ class _QrFormScreenState extends State<QrFormScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('필수 입력을 확인해주세요.')));
+      _setGenerating(false);
       return;
     }
     if (!mounted) return;
     setState(() {
       _payload = result.payload;
     });
+    _playFeedback();
+    _setGenerating(false);
   }
 
   String _sanitizeUrl(String input) {
@@ -1016,6 +1050,41 @@ class _QrFormScreenState extends State<QrFormScreen> {
     if (settings.sound) {
       SystemSound.play(SystemSoundType.click);
     }
+  }
+
+  void _setGenerating(bool value) {
+    if (!mounted) return;
+    setState(() {
+      _isGenerating = value;
+    });
+    if (value) {
+      _showGeneratingDialog();
+    } else {
+      _hideGeneratingDialog();
+    }
+  }
+
+  void _showGeneratingDialog() {
+    if (_generatingDialogVisible) return;
+    _generatingDialogVisible = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: CircularProgressIndicator(strokeWidth: 4),
+        ),
+      ),
+    ).then((_) {
+      _generatingDialogVisible = false;
+    });
+  }
+
+  void _hideGeneratingDialog() {
+    if (!_generatingDialogVisible) return;
+    Navigator.of(context).pop();
   }
 }
 

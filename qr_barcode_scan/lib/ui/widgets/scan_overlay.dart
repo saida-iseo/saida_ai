@@ -21,23 +21,9 @@ class ScanOverlay extends StatelessWidget {
 
     return Stack(
       children: [
-        ColorFiltered(
-          colorFilter: const ColorFilter.mode(Colors.black54, BlendMode.srcOut),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(color: Colors.transparent),
-              Positioned.fromRect(
-                rect: scanWindow,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        CustomPaint(
+          size: Size.infinite,
+          painter: _ScanMaskPainter(scanWindow: scanWindow),
         ),
         Positioned.fromRect(
           rect: scanWindow,
@@ -95,5 +81,26 @@ class ScanOverlay extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _ScanMaskPainter extends CustomPainter {
+  _ScanMaskPainter({required this.scanWindow});
+
+  final Rect scanWindow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final overlay = Paint()..color = Colors.black54;
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addRRect(RRect.fromRectAndRadius(scanWindow, const Radius.circular(16)));
+    path.fillType = PathFillType.evenOdd;
+    canvas.drawPath(path, overlay);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScanMaskPainter oldDelegate) {
+    return oldDelegate.scanWindow != scanWindow;
   }
 }

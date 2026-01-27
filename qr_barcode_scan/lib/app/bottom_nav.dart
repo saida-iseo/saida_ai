@@ -33,7 +33,6 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     _initAds();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _requestInitialPermissions();
-      _requestNotificationOnce();
       _showSafetyNoticeIfNeeded();
       _listenProcessText();
     });
@@ -45,12 +44,6 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     } catch (_) {
       // 광고 초기화 실패는 UX에 치명적이지 않으므로 무시합니다.
     }
-  }
-
-  Future<void> _requestNotificationOnce() async {
-    if (LocalStorage.onboardingDone) return;
-    await Permission.notification.request();
-    await LocalStorage.setOnboardingDone();
   }
 
   Future<void> _showSafetyNoticeIfNeeded() async {
@@ -126,20 +119,6 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     final cameraStatus = await Permission.camera.status;
     if (!cameraStatus.isGranted) {
       await Permission.camera.request();
-    }
-    if (Platform.isIOS) {
-      final photoStatus = await Permission.photos.status;
-      if (!photoStatus.isGranted) {
-        await Permission.photos.request();
-      }
-      return;
-    }
-    var mediaStatus = await Permission.photos.status;
-    if (!mediaStatus.isGranted) {
-      mediaStatus = await Permission.photos.request();
-    }
-    if (!mediaStatus.isGranted) {
-      await Permission.storage.request();
     }
   }
 

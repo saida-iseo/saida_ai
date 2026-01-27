@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_barcode_scan/features/settings/legal_screen.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
 import 'package:share_plus/share_plus.dart';
@@ -13,6 +12,12 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final systemBrightness = MediaQuery.platformBrightnessOf(context);
+    final effectiveTheme = settings.themeMode == AppThemeMode.system
+        ? (systemBrightness == Brightness.dark
+            ? AppThemeMode.dark
+            : AppThemeMode.light)
+        : settings.themeMode;
     final titleStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600);
     final subtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 12);
     final detailSubtitleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10);
@@ -38,11 +43,7 @@ class SettingsScreen extends ConsumerWidget {
                   ButtonSegment(value: AppThemeMode.light, label: Text('라이트')),
                   ButtonSegment(value: AppThemeMode.dark, label: Text('다크')),
                 ],
-                selected: {
-                  settings.themeMode == AppThemeMode.system
-                      ? AppThemeMode.light
-                      : settings.themeMode,
-                },
+                selected: {effectiveTheme},
                 onSelectionChanged: (value) {
                   ref.read(settingsProvider.notifier).setThemeMode(value.first);
                 },
@@ -99,28 +100,6 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
-        _SectionTitle(title: '권한'),
-        _SectionCard(
-          children: [
-            ListTile(
-              contentPadding: tilePadding,
-              dense: true,
-              visualDensity: VisualDensity.compact,
-              minVerticalPadding: 0,
-              title: Text('알림 권한 요청', style: titleStyle),
-              subtitle: Text('탭하여 권한을 요청합니다.', style: detailSubtitleStyle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                await Permission.notification.request();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('알림 권한 요청을 완료했습니다.')),
-                );
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
         _SectionTitle(title: '정보'),
         _SectionCard(
           children: [
