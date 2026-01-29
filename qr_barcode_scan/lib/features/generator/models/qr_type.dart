@@ -35,16 +35,16 @@ const List<QrTypeMeta> qrTypes = [
     icon: Icons.public_rounded,
   ),
   QrTypeMeta(
-    type: QrType.wifi,
-    name: '와이파이',
-    description: 'SSID/비밀번호 공유',
-    icon: Icons.wifi_rounded,
-  ),
-  QrTypeMeta(
     type: QrType.image,
     name: '이미지',
     description: '포스터/이미지 링크',
     icon: Icons.image_outlined,
+  ),
+  QrTypeMeta(
+    type: QrType.wifi,
+    name: '와이파이',
+    description: 'SSID/비밀번호 공유',
+    icon: Icons.wifi_rounded,
   ),
   QrTypeMeta(
     type: QrType.instagram,
@@ -65,28 +65,16 @@ const List<QrTypeMeta> qrTypes = [
     icon: Icons.chat_rounded,
   ),
   QrTypeMeta(
-    type: QrType.youtube,
-    name: 'YouTube',
-    description: '채널/영상 링크',
-    icon: Icons.play_circle_fill_rounded,
-  ),
-  QrTypeMeta(
-    type: QrType.vcard,
-    name: 'vCard',
-    description: '전자명함 공유',
-    icon: Icons.badge_outlined,
-  ),
-  QrTypeMeta(
-    type: QrType.appRedirect,
-    name: '앱 설치',
-    description: '스토어로 연결',
-    icon: Icons.apps_rounded,
-  ),
-  QrTypeMeta(
     type: QrType.pdf,
     name: 'PDF',
     description: '문서 링크/업로드',
     icon: Icons.picture_as_pdf,
+  ),
+  QrTypeMeta(
+    type: QrType.youtube,
+    name: 'YouTube',
+    description: '채널/영상 링크',
+    icon: Icons.play_circle_fill_rounded,
   ),
 ];
 

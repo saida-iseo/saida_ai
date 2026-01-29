@@ -5,6 +5,9 @@ import 'package:qr_barcode_scan/models/history_item.dart';
 class LocalStorage {
   static const String historyBoxName = 'history';
   static const String settingsBoxName = 'settings';
+  static const String onboardingKey = 'onboarding';
+  static const String currentOnboardingVersion = '1';
+  static const String safetyNoticeKey = 'safetyNotice';
 
   static late Box<Map> _historyBox;
   static late Box<Map> _settingsBox;
@@ -45,16 +48,68 @@ class LocalStorage {
     await _settingsBox.put('app', settings.toMap());
   }
 
-  static bool get onboardingDone => _settingsBox.get('onboarding')?['done'] == true;
+  static bool get onboardingDone => onboardingSeen;
+
+  static Map<dynamic, dynamic> _onboardingMap() {
+    final value = _settingsBox.get(onboardingKey);
+    return value is Map ? value : <dynamic, dynamic>{};
+  }
+
+  static bool get onboardingSeen {
+    final map = _onboardingMap();
+    final done = map['done'] == true;
+    final seen = map['seen'] == true || done;
+    final version = map['version'] as String?;
+    if (!seen) return false;
+    if (version == null || version.isEmpty) return false;
+    return version == currentOnboardingVersion;
+  }
+
+  static bool get shouldShowOnboarding {
+    final map = _onboardingMap();
+    final seen = map['seen'] == true || map['done'] == true;
+    final version = map['version'] as String?;
+    if (!seen) return true;
+    if (version == null || version.isEmpty) return true;
+    return version != currentOnboardingVersion;
+  }
 
   static Future<void> setOnboardingDone() async {
-    await _settingsBox.put('onboarding', {'done': true});
+    await setOnboardingSeen();
+  }
+
+  static Future<void> setOnboardingSeen() async {
+    await _settingsBox.put(onboardingKey, {
+      'version': currentOnboardingVersion,
+      'seen': true,
+      'done': true,
+    });
   }
 
   static bool get safetyNoticeDone => _settingsBox.get('safetyNotice')?['done'] == true;
+  static bool safetyNoticeAcknowledged = false;
 
   static Future<void> setSafetyNoticeDone() async {
-    await _settingsBox.put('safetyNotice', {'done': true});
+    await _settingsBox.put(safetyNoticeKey, {'done': true});
+  }
+
+  static bool get shouldShowSafetyNotice {
+    final map = _settingsBox.get(safetyNoticeKey);
+    if (map is Map) {
+      final value = map['snoozedAt'];
+      if (value is int) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        const dayMs = 24 * 60 * 60 * 1000;
+        if (now - value < dayMs) return false;
+      }
+    }
+    return true;
+  }
+
+  static Future<void> snoozeSafetyNoticeFor24Hours() async {
+    await _settingsBox.put(safetyNoticeKey, {
+      'snoozedAt': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   static bool get firstScanNoticeDone => _settingsBox.get('firstScanNotice')?['done'] == true;

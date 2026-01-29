@@ -1,21 +1,18 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:qr_barcode_scan/app/nav_provider.dart';
 import 'package:qr_barcode_scan/features/generator/generator_screen.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_type.dart';
 import 'package:qr_barcode_scan/features/generator/qr_form_screen.dart';
 import 'package:qr_barcode_scan/features/history/history_screen.dart';
+import 'package:qr_barcode_scan/features/onboarding/onboarding_screen.dart';
 import 'package:qr_barcode_scan/features/scanner/scanner_screen.dart';
 import 'package:qr_barcode_scan/features/settings/settings_screen.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
 import 'package:qr_barcode_scan/ui/widgets/ad_banner.dart';
 import 'package:qr_barcode_scan/utils/process_text_service.dart';
-
-final navIndexProvider = StateProvider<int>((ref) => 0);
 
 class BottomNavScaffold extends ConsumerStatefulWidget {
   const BottomNavScaffold({super.key});
@@ -31,9 +28,11 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
   void initState() {
     super.initState();
     _initAds();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _requestInitialPermissions();
-      _showSafetyNoticeIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _maybeShowOnboarding();
+      if (!mounted) return;
+      await _maybeShowSafetyNotice();
+      if (!mounted) return;
       _listenProcessText();
     });
   }
@@ -46,35 +45,48 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     }
   }
 
-  Future<void> _showSafetyNoticeIfNeeded() async {
-    await showDialog<void>(
+  Future<void> _maybeShowOnboarding() async {
+    if (!LocalStorage.shouldShowOnboarding) return;
+    final action = await Navigator.of(context).push<OnboardingAction>(
+      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+    );
+    if (!mounted) return;
+    await LocalStorage.setOnboardingSeen();
+    if (action == OnboardingAction.startScan) {
+      ref.read(navIndexProvider.notifier).state = 0;
+    }
+  }
+
+  Future<void> _maybeShowSafetyNotice() async {
+    if (!LocalStorage.shouldShowSafetyNotice) return;
+    final action = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('큐싱(크싱) 피해 예방 안내'),
         content: const SingleChildScrollView(
           child: Text(
-            'QR코드를 이용한 큐싱(Qshing) 범죄가 증가하고 있습니다.\n'
-            '출처가 불분명한 QR코드는 주의하세요.\n\n'
-            '큐싱이란?\n'
-            'QR코드 + 피싱의 합성어로, 악성 QR코드를 스캔하면 개인·금융정보 탈취, 원격 제어, 결제 피해가 발생할 수 있습니다.\n\n'
-            '예방 수칙\n'
-            '• 출처가 불분명한 QR코드는 스캔하지 않기\n'
-            '• 스캔 후 열리는 URL이 정상인지 확인\n'
-            '• 개인정보 입력을 요구하면 의심\n'
-            '• 보안 앱 최신 상태 유지\n\n'
-            '피해가 의심되면 즉시 비행기 모드 전환 후 백신으로 점검하고, 112/1332/118 등에 신고하세요.',
+            '출처가 불분명한 QR은 스캔하지 마세요.\n'
+            '스캔 후 열리는 주소를 꼭 확인하세요.\n'
+            '개인정보 입력을 요구하면 의심하세요.',
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
+            onPressed: () => Navigator.pop(context, 'snooze'),
+            child: const Text('24시간 동안 닫기'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'dismiss'),
+            child: const Text('닫기'),
           ),
         ],
       ),
     );
-    await LocalStorage.setSafetyNoticeDone();
+    if (action == 'snooze') {
+      await LocalStorage.snoozeSafetyNoticeFor24Hours();
+    }
+    LocalStorage.safetyNoticeAcknowledged = true;
   }
 
   void _listenProcessText() {
@@ -113,13 +125,6 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     }
     if (trimmed.contains(' ') || !trimmed.contains('.')) return null;
     return 'https://$trimmed';
-  }
-
-  Future<void> _requestInitialPermissions() async {
-    final cameraStatus = await Permission.camera.status;
-    if (!cameraStatus.isGranted) {
-      await Permission.camera.request();
-    }
   }
 
   @override

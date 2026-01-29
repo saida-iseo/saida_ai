@@ -35,8 +35,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   DateTime? _lastScanTime;
   bool _isSheetOpen = false;
   bool _permissionGranted = false;
+  PermissionStatus? _cameraStatus;
   bool _galleryPermissionGranted = false;
+  bool _checkingPermissions = true;
   bool _startRequested = false;
+  bool _autoRequested = false;
   final bool _isBarcodeMode = false;
 
   @override
@@ -51,19 +54,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     final galleryStatus = await _getGalleryPermissionStatus();
     if (!mounted) return;
     setState(() {
+      _cameraStatus = cameraStatus;
       _permissionGranted = cameraStatus.isGranted;
       _galleryPermissionGranted = galleryStatus.isGranted;
+      _checkingPermissions = false;
     });
-    await _startCameraIfPossible();
+    if (cameraStatus.isGranted) {
+      await _startCameraIfPossible();
+    }
   }
 
   Future<PermissionStatus> _requestCameraPermission() async {
     final status = await Permission.camera.request();
     if (!mounted) return status;
     setState(() {
+      _cameraStatus = status;
       _permissionGranted = status.isGranted;
     });
-    await _startCameraIfPossible();
+    if (status.isGranted) {
+      await _startCameraIfPossible();
+    }
     return status;
   }
 
@@ -111,6 +121,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     });
     return status;
   }
+
+  bool get _cameraPermanentlyDenied =>
+      _cameraStatus?.isPermanentlyDenied == true ||
+      _cameraStatus?.isRestricted == true;
 
   Future<void> _handleBarcode(
     BarcodeCapture capture, {
@@ -523,6 +537,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    if (LocalStorage.safetyNoticeAcknowledged &&
+        !_checkingPermissions &&
+        !_permissionGranted &&
+        !_autoRequested) {
+      _autoRequested = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _requestCameraPermission();
+        if (mounted) {
+          _autoRequested = false;
+        }
+      });
+    }
     if (_permissionGranted &&
         !_controller.value.isRunning &&
         !_startRequested) {
@@ -534,169 +561,206 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     }
     // TODO: mobile_scanner의 자동 초점 직접 제어는 제한적이라 UI 상태만 반영합니다.
 
+    final body = _permissionGranted
+        ? _buildScannerView(context, settings)
+        : _checkingPermissions
+            ? const Center(child: CircularProgressIndicator())
+            : _buildCameraPermissionGate(context);
+
     return Stack(
       children: [
-        Positioned.fill(
-          child: _permissionGranted
-              ? LayoutBuilder(
-                  builder: (context, constraints) {
-                    final safe = MediaQuery.of(context).padding;
-                    final textScale = MediaQuery.textScaleFactorOf(context);
-                    final compact = constraints.maxHeight < 680;
-                    final titleHeight = compact ? 28.0 : 32.0;
-                    final topPadding = safe.top + 12;
-                    const titleExtraOffset = 56.0; // 약 2cm 정도 더 내려서 표시
-                    final topGap = 12.0;
-                    final toggleGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
-                    final toggleBaseHeight =
-                        (compact ? 36.0 : 40.0) + toggleGrowth;
-                    final toggleHeight = math.max(
-                      kMinInteractiveDimension,
-                      toggleBaseHeight,
-                    );
-                    final barMinHeight = compact ? 52.0 : 56.0;
-                    final barGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
-                    final barReservedHeight = barMinHeight + barGrowth;
-                    final barGap = compact
-                        ? 26.0
-                        : 32.0; // 추가 여유 간격으로 토글과 하단 컨트롤 분리
-                    final extraBottomGap = compact ? 8.0 : 12.0;
-                    final bottomInset = safe.bottom + extraBottomGap;
-                    final topReserved = topPadding + titleHeight + topGap;
-                    final bottomReserved =
-                        toggleHeight + barGap + barReservedHeight + bottomInset;
-                    final scanSize = math.min(
-                      constraints.maxWidth * 0.72,
-                      constraints.maxHeight * 0.72,
-                    );
-                    final scanWindow = Rect.fromLTWH(
-                      (constraints.maxWidth - scanSize) / 2,
-                      (constraints.maxHeight - scanSize) / 2,
-                      scanSize,
-                      scanSize,
-                    );
-                    final bottomBarTop =
-                        constraints.maxHeight - bottomInset - barReservedHeight;
-                    final toggleTop = math.max(
-                      scanWindow.bottom + 8,
-                      scanWindow.bottom +
-                          (bottomBarTop - scanWindow.bottom - toggleHeight) / 2,
-                    );
-
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        MobileScanner(
-                          controller: _controller,
-                          fit: BoxFit.cover,
-                          scanWindow: scanWindow,
-                          onDetect: _handleBarcode,
-                          errorBuilder: (context, error, child) {
-                            return _CameraErrorCard(
-                              message: _cameraErrorMessage(error),
-                              onRetry: () async {
-                                await _controller.stop();
-                                await _controller.start();
-                              },
-                            );
-                          },
-                        ),
-                        ScanOverlay(
-                          scanWindow: scanWindow,
-                          label: '이 곳에 QR 코드를 위치시켜주세요',
-                        ),
-                        Positioned(
-                          left: 16,
-                          right: 16,
-                          top: topPadding + titleExtraOffset,
-                          child: Text(
-                            'QR 스캔',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: compact ? 22 : 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Positioned(
-                          left: 16,
-                          right: 16,
-                          top: toggleTop,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: toggleHeight,
-                            ),
-                            child: _SettingToggleRow(
-                              label: 'URL 자동 열기',
-                              enabled: settings.autoOpenUrl,
-                              onChanged: (value) =>
-                                  _handleAutoOpenToggle(context, value),
-                              textStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.85),
-                                fontSize: compact ? 12 : 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 16,
-                          right: 16,
-                          bottom: extraBottomGap,
-                          child: SafeArea(
-                            top: false,
-                            child: Container(
-                              constraints: BoxConstraints(
-                                minHeight: barMinHeight,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(22),
-                              ),
-                              child: Row(
-                                children: [
-                                  _ScanControlButton(
-                                    icon: Icons.photo_library_outlined,
-                                    label: '앨범',
-                                    fontSize: compact ? 12 : 13,
-                                    verticalPadding: compact ? 6 : 8,
-                                    onTap: _pickFromGallery,
-                                  ),
-                                  _ScanControlButton(
-                                    icon: _controller.torchEnabled
-                                        ? Icons.flash_on
-                                        : Icons.flash_off,
-                                    label: '플래시',
-                                    fontSize: compact ? 12 : 13,
-                                    verticalPadding: compact ? 6 : 8,
-                                    onTap: () async {
-                                      await _controller.toggleTorch();
-                                      setState(() {});
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                )
-              : _PermissionPrompt(
-                  onRequestCamera: () async {
-                    await _requestCameraPermission();
-                  },
-                ),
-        ),
+        Positioned.fill(child: body),
       ],
+    );
+  }
+
+  Widget _buildScannerView(BuildContext context, AppSettings settings) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final safe = MediaQuery.of(context).padding;
+        final textScale = MediaQuery.textScaleFactorOf(context);
+        final compact = constraints.maxHeight < 680;
+        final titleHeight = compact ? 28.0 : 32.0;
+        final topPadding = safe.top + 12;
+        const titleExtraOffset = 56.0; // 약 2cm 정도 더 내려서 표시
+        final topGap = 12.0;
+        final toggleGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
+        final toggleBaseHeight = (compact ? 36.0 : 40.0) + toggleGrowth;
+        final toggleHeight = math.max(
+          kMinInteractiveDimension,
+          toggleBaseHeight,
+        );
+        final barMinHeight = compact ? 52.0 : 56.0;
+        final barGrowth = (textScale - 1).clamp(0.0, 0.8) * 12.0;
+        final barReservedHeight = barMinHeight + barGrowth;
+        final barGap = compact ? 26.0 : 32.0; // 추가 여유 간격으로 토글과 하단 컨트롤 분리
+        final extraBottomGap = compact ? 8.0 : 12.0;
+        final bottomInset = safe.bottom + extraBottomGap;
+        final topReserved = topPadding + titleHeight + topGap;
+        final bottomReserved =
+            toggleHeight + barGap + barReservedHeight + bottomInset;
+        final scanSize = math.min(
+          constraints.maxWidth * 0.72,
+          constraints.maxHeight * 0.72,
+        );
+        final scanWindow = Rect.fromLTWH(
+          (constraints.maxWidth - scanSize) / 2,
+          (constraints.maxHeight - scanSize) / 2,
+          scanSize,
+          scanSize,
+        );
+        final bottomBarTop =
+            constraints.maxHeight - bottomInset - barReservedHeight;
+        final toggleTop = math.max(
+          scanWindow.bottom + 8,
+          scanWindow.bottom +
+              (bottomBarTop - scanWindow.bottom - toggleHeight) / 2,
+        );
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            MobileScanner(
+              controller: _controller,
+              fit: BoxFit.cover,
+              scanWindow: scanWindow,
+              onDetect: _handleBarcode,
+              errorBuilder: (context, error, child) {
+                return _CameraErrorCard(
+                  message: _cameraErrorMessage(error),
+                  onRetry: () async {
+                    await _controller.stop();
+                    await _controller.start();
+                  },
+                );
+              },
+            ),
+            ScanOverlay(
+              scanWindow: scanWindow,
+              label: '이 곳에 QR 코드를 위치시켜주세요',
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              top: topPadding + titleExtraOffset,
+              child: Text(
+                'QR 스캔',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: compact ? 22 : 24,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              top: toggleTop,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: toggleHeight,
+                ),
+                child: _SettingToggleRow(
+                  label: 'URL 자동 열기',
+                  enabled: settings.autoOpenUrl,
+                  onChanged: (value) => _handleAutoOpenToggle(context, value),
+                  textStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: compact ? 12 : 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: extraBottomGap,
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  constraints: BoxConstraints(
+                    minHeight: barMinHeight,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(
+                    children: [
+                      _ScanControlButton(
+                        icon: Icons.photo_library_outlined,
+                        label: '앨범',
+                        fontSize: compact ? 12 : 13,
+                        verticalPadding: compact ? 6 : 8,
+                        onTap: _pickFromGallery,
+                      ),
+                      _ScanControlButton(
+                        icon: _controller.torchEnabled
+                            ? Icons.flash_on
+                            : Icons.flash_off,
+                        label: '플래시',
+                        fontSize: compact ? 12 : 13,
+                        verticalPadding: compact ? 6 : 8,
+                        onTap: () async {
+                          await _controller.toggleTorch();
+                          setState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCameraPermissionGate(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final permanentlyDenied = _cameraPermanentlyDenied;
+    final title =
+        permanentlyDenied ? '설정에서 카메라를 허용해 주세요' : '카메라 접근이 필요해요';
+    final primaryLabel = permanentlyDenied ? '설정으로 이동' : '다시 요청';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock, size: 48, color: colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  if (permanentlyDenied) {
+                    await openAppSettings();
+                  } else {
+                    await _requestCameraPermission();
+                  }
+                },
+                child: Text(primaryLabel),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -852,89 +916,6 @@ class _SettingToggleRow extends StatelessWidget {
           onChanged: onChanged,
           activeColor: Theme.of(context).colorScheme.primary,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-      ],
-    );
-  }
-}
-
-class _PermissionPrompt extends StatelessWidget {
-  const _PermissionPrompt({
-    required this.onRequestCamera,
-  });
-
-  final Future<void> Function() onRequestCamera;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock, size: 48, color: colorScheme.primary),
-            const SizedBox(height: 12),
-            Text(
-              '권한을 허용해 주세요.',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '카메라 권한을 허용하면 바로 스캔이 시작됩니다.',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            _PermissionRow(
-              label: '카메라 권한',
-              granted: false,
-              onRequest: onRequestCamera,
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => openAppSettings(),
-              child: const Text('설정 열기'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PermissionRow extends StatelessWidget {
-  const _PermissionRow({
-    required this.label,
-    required this.granted,
-    required this.onRequest,
-  });
-
-  final String label;
-  final bool granted;
-  final Future<void> Function() onRequest;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Icon(
-          granted ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: granted ? colorScheme.primary : colorScheme.outline,
-          size: 20,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: granted ? null : () => onRequest(),
-          child: Text(granted ? '완료' : '허용'),
         ),
       ],
     );
