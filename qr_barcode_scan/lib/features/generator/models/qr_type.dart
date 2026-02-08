@@ -5,7 +5,6 @@ enum QrType {
   pdf,
   vcard,
   image,
-  facebook,
   instagram,
   whatsapp,
   appRedirect,
@@ -51,12 +50,6 @@ const List<QrTypeMeta> qrTypes = [
     name: 'Instagram',
     description: '@username 프로필',
     icon: Icons.camera_alt_outlined,
-  ),
-  QrTypeMeta(
-    type: QrType.facebook,
-    name: 'Facebook',
-    description: '페이지/포스트 연결',
-    icon: Icons.facebook,
   ),
   QrTypeMeta(
     type: QrType.whatsapp,

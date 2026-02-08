@@ -57,7 +57,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
   final _vEmailCtrl = TextEditingController();
   final _vWebsiteCtrl = TextEditingController();
   final _vAddressCtrl = TextEditingController();
-  final _fbUrlCtrl = TextEditingController();
   final _igUserCtrl = TextEditingController();
   final _waPhoneCtrl = TextEditingController();
   String _waCountryCode = '+82';
@@ -176,6 +175,14 @@ class _QrFormScreenState extends State<QrFormScreen> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: _resetForm,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey[600],
+                              side: BorderSide(color: Colors.grey[300]!),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                             child: const Text('초기화'),
                           ),
                         ),
@@ -186,12 +193,21 @@ class _QrFormScreenState extends State<QrFormScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF2F80ED),
                               foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
                             ),
                             child: Text(
                               widget.type == QrType.image ||
                                       widget.type == QrType.pdf
                                   ? '첨부완료'
                                   : '입력 완료',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -210,11 +226,21 @@ class _QrFormScreenState extends State<QrFormScreen> {
   }
 
   Widget _buildActionRow(BuildContext context) {
+    final style = OutlinedButton.styleFrom(
+      foregroundColor: Colors.grey[800],
+      side: BorderSide(color: Colors.grey[300]!),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+
     return Row(
       children: [
         Expanded(
           child: OutlinedButton(
             onPressed: _openDesignEditor,
+            style: style,
             child: const Text('편집'),
           ),
         ),
@@ -222,13 +248,15 @@ class _QrFormScreenState extends State<QrFormScreen> {
         Expanded(
           child: OutlinedButton(
             onPressed: _payload.isEmpty ? null : _saveQr,
+            style: style,
             child: const Text('저장'),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: ElevatedButton(
+          child: OutlinedButton(
             onPressed: _payload.isEmpty ? null : _shareQr,
+            style: style,
             child: const Text('공유'),
           ),
         ),
@@ -250,8 +278,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
         return _buildVCardForm();
       case QrType.image:
         return _buildImageForm();
-      case QrType.facebook:
-        return _buildFacebookForm();
       case QrType.instagram:
         return _buildInstagramForm();
       case QrType.whatsapp:
@@ -426,25 +452,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
         TextField(
           controller: _vAddressCtrl,
           decoration: _inputDecoration('서울시 ...'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFacebookForm() {
-    return _FieldCard(
-      children: [
-        _Label('Facebook 사용자 이름 또는 URL*'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _fbUrlCtrl,
-          decoration: _inputDecoration('zuck 또는 https://facebook.com/...'),
-          keyboardType: TextInputType.url,
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          '입력 시 https://www.facebook.com/username 로 변환됩니다.',
-          style: TextStyle(fontSize: 11, color: Colors.grey),
         ),
       ],
     );
@@ -754,7 +761,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
         return PayloadType.image;
       case QrType.youtube:
         return PayloadType.video;
-      case QrType.facebook:
       case QrType.instagram:
       case QrType.whatsapp:
         return PayloadType.social;
@@ -859,11 +865,6 @@ class _QrFormScreenState extends State<QrFormScreen> {
           'email': _vEmailCtrl.text.trim(),
           'website': _vWebsiteCtrl.text.trim(),
           'address': _vAddressCtrl.text.trim(),
-        };
-        break;
-      case QrType.facebook:
-        data = {
-          'handle': _fbUrlCtrl.text.trim(),
         };
         break;
       case QrType.instagram:

@@ -28,47 +28,32 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         Text('설정', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
-        Padding(
-          padding: tilePadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('테마', style: titleStyle),
-              const SizedBox(height: 6),
-              Text('라이트/다크 전환', style: subtitleStyle),
-              const SizedBox(height: 8),
-              SegmentedButton<AppThemeMode>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: AppThemeMode.light, label: Text('라이트')),
-                  ButtonSegment(value: AppThemeMode.dark, label: Text('다크')),
-                ],
-                selected: {effectiveTheme},
-                onSelectionChanged: (value) {
-                  ref.read(settingsProvider.notifier).setThemeMode(value.first);
-                },
-              ),
-            ],
-          ),
-        ),
+
         const SizedBox(height: 8),
         _SectionTitle(title: '기본 설정'),
         _SectionCard(
           children: [
-            _SwitchTile(
-              title: '진동',
-              value: settings.vibrate,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleVibrate(),
-              titleStyle: titleStyle,
-              subtitleStyle: subtitleStyle,
-            ),
-            const _CardDivider(),
-            _SwitchTile(
-              title: '소리',
-              value: settings.sound,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleSound(),
-              titleStyle: titleStyle,
-              subtitleStyle: subtitleStyle,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('테마 설정', style: titleStyle),
+                  const SizedBox(height: 8),
+                  SegmentedButton<AppThemeMode>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: AppThemeMode.light, label: Text('라이트')),
+                      ButtonSegment(value: AppThemeMode.dark, label: Text('다크')),
+                      ButtonSegment(value: AppThemeMode.system, label: Text('시스템')),
+                    ],
+                    selected: {settings.themeMode},
+                    onSelectionChanged: (value) {
+                      ref.read(settingsProvider.notifier).setThemeMode(value.first);
+                    },
+                  ),
+                ],
+              ),
             ),
             const _CardDivider(),
             _SwitchTile(
