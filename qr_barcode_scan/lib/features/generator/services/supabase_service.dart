@@ -22,4 +22,21 @@ class SupabaseService {
     
     return publicUrl;
   }
+
+  /// Uploads raw bytes to the 'qr-files' bucket and returns the public URL.
+  Future<String> uploadBytes(Uint8List bytes, String fileName) async {
+    final mimeType = lookupMimeType(fileName) ?? 'application/octet-stream';
+    
+    // 1. Upload the bytes to Supabase Storage
+    await _client.storage.from('qr-files').uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: FileOptions(contentType: mimeType, upsert: true),
+        );
+
+    // 2. Get the public URL
+    final String publicUrl = _client.storage.from('qr-files').getPublicUrl(fileName);
+    
+    return publicUrl;
+  }
 }
