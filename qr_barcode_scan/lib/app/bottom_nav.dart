@@ -12,6 +12,7 @@ import 'package:qr_barcode_scan/features/scanner/scanner_screen.dart';
 import 'package:qr_barcode_scan/features/settings/settings_screen.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
 import 'package:qr_barcode_scan/ui/widgets/ad_banner.dart';
+import 'package:qr_barcode_scan/utils/app_open_ad_manager.dart';
 import 'package:qr_barcode_scan/utils/process_text_service.dart';
 
 class BottomNavScaffold extends ConsumerStatefulWidget {
@@ -21,12 +22,16 @@ class BottomNavScaffold extends ConsumerStatefulWidget {
   ConsumerState<BottomNavScaffold> createState() => _BottomNavScaffoldState();
 }
 
-class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
+class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold>
+    with WidgetsBindingObserver {
   StreamSubscription<String>? _processTextSub;
+  late AppOpenAdManager _appOpenAdManager;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _appOpenAdManager = AppOpenAdManager()..loadAd();
     _initAds();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _maybeShowOnboarding();
@@ -89,6 +94,13 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     LocalStorage.safetyNoticeAcknowledged = true;
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _appOpenAdManager.showAdIfAvailable();
+    }
+  }
+
   void _listenProcessText() {
     ProcessTextService.getInitialText().then(_handleProcessText);
     _processTextSub?.cancel();
@@ -129,6 +141,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _processTextSub?.cancel();
     super.dispose();
   }
@@ -150,6 +163,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
         bottom: false,
         child: Column(
           children: [
+            Expanded(child: screens[index]),
             Visibility(
               visible: index >= 1,
               maintainState: true,
@@ -157,7 +171,6 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
               maintainSize: false,
               child: const AdBanner(),
             ),
-            Expanded(child: screens[index]),
           ],
         ),
       ),

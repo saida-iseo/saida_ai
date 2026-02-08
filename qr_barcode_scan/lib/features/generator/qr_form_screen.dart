@@ -11,7 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_design.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_type.dart';
 import 'package:qr_barcode_scan/features/generator/services/payload_builder.dart';
-import 'package:qr_barcode_scan/features/generator/services/upload_service.dart';
+import 'package:qr_barcode_scan/features/generator/services/supabase_service.dart';
 import 'package:qr_barcode_scan/features/generator/widgets/design_editor_sheet.dart';
 import 'package:qr_barcode_scan/features/generator/widgets/qr_preview_card.dart';
 import 'package:qr_barcode_scan/models/history_item.dart';
@@ -38,7 +38,7 @@ class QrFormScreen extends StatefulWidget {
 
 class _QrFormScreenState extends State<QrFormScreen> {
   late QrDesign _design;
-  final _uploadService = UploadService();
+  final _uploadService = SupabaseService();
   String _payload = '';
   bool _uploading = false;
   bool _isGenerating = false;

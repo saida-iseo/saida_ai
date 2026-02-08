@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_barcode_scan/features/generator/models/qr_type.dart';
 import 'package:qr_barcode_scan/features/generator/qr_form_screen.dart';
+import 'package:qr_barcode_scan/ui/widgets/ad_banner.dart';
 
 class GeneratorScreen extends StatelessWidget {
   const GeneratorScreen({super.key});
@@ -21,6 +22,8 @@ class GeneratorScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const AdBanner(),
+              const SizedBox(height: 8),
               const Text(
                 'QR 생성',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),

@@ -47,8 +47,13 @@ class _AdBannerState extends State<AdBanner> {
     if (kIsWeb) return null;
     if (Platform.isAndroid) {
       return kReleaseMode
-          ? 'ca-app-pub-7885970786250498/1405623883'
+          ? 'ca-app-pub-7885970786250498/2471043524'
           : 'ca-app-pub-3940256099942544/6300978111';
+    }
+    if (Platform.isIOS) {
+      return kReleaseMode
+          ? 'ca-app-pub-7885970786250498/2471043524'
+          : 'ca-app-pub-3940256099942544/2934735716';
     }
     return null;
   }

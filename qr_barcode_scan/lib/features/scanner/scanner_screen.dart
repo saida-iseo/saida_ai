@@ -13,6 +13,7 @@ import 'package:qr_barcode_scan/models/history_item.dart';
 import 'package:qr_barcode_scan/storage/local_storage.dart';
 import 'package:qr_barcode_scan/ui/widgets/result_sheet.dart';
 import 'package:qr_barcode_scan/ui/widgets/scan_overlay.dart';
+import 'package:qr_barcode_scan/ui/widgets/ad_banner.dart';
 import 'package:qr_barcode_scan/utils/link_handler.dart';
 import 'package:qr_barcode_scan/utils/parsers.dart';
 import 'package:qr_barcode_scan/utils/url_safety.dart';
@@ -642,45 +643,45 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             Positioned(
               left: 16,
               right: 16,
-              top: topPadding + titleExtraOffset,
-              child: Text(
-                'QR 스캔',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: compact ? 22 : 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              top: toggleTop,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: toggleHeight,
-                ),
-                child: _SettingToggleRow(
-                  label: 'URL 자동 열기',
-                  enabled: settings.autoOpenUrl,
-                  onChanged: (value) => _handleAutoOpenToggle(context, value),
-                  textStyle: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: compact ? 12 : 13,
-                    fontWeight: FontWeight.w600,
+              top: topPadding + 40,
+              child: Column(
+                children: [
+                  Text(
+                    'QR 스캔',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: compact ? 22 : 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: toggleHeight,
+                    ),
+                    child: _SettingToggleRow(
+                      label: 'URL 자동 열기',
+                      enabled: settings.autoOpenUrl,
+                      onChanged: (value) =>
+                          _handleAutoOpenToggle(context, value),
+                      textStyle: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: compact ? 12 : 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Positioned(
               left: 16,
               right: 16,
-              bottom: extraBottomGap,
+              bottom: 80, // 올려서 배경과 광고가 겹치지 않게 함
               child: SafeArea(
                 top: false,
+                bottom: false,
                 child: Container(
                   constraints: BoxConstraints(
                     minHeight: barMinHeight,
@@ -718,6 +719,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                   ),
                 ),
               ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 4,
+              child: const AdBanner(),
             ),
           ],
         );
