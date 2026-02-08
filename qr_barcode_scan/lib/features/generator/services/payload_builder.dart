@@ -53,17 +53,6 @@ class QrPayloadBuilder {
           payload: buffer.toString(),
           displayMeta: {'label': 'vCard', 'name': name, 'phone': phone},
         );
-      case QrType.facebook:
-        final handle = (data['handle'] as String? ?? '').trim();
-        if (handle.isEmpty) return null;
-        final normalized = handle.replaceAll('@', '');
-        final url = normalized.startsWith('http://') || normalized.startsWith('https://')
-            ? normalized
-            : 'https://www.facebook.com/$normalized';
-        return PayloadBuildResult(
-          payload: url,
-          displayMeta: {'label': 'Facebook', 'url': url},
-        );
       case QrType.instagram:
         final username = (data['username'] as String? ?? '').replaceAll('@', '').trim();
         if (username.isEmpty) return null;
