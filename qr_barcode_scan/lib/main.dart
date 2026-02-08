@@ -1,5 +1,11 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:qr_barcode_scan/app/app_theme.dart';
+import 'package:qr_barcode_scan/app/bottom_nav.dart';
 import 'package:qr_barcode_scan/app/backend_config.dart';
+import 'package:qr_barcode_scan/storage/local_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
